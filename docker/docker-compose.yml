@@ -1,0 +1,30 @@
+version: "3.8"
+
+# 一键部署（有头 / GUI 可见浏览器）
+# 基于 linuxserver/webtop:debian-xfce，提供完整桌面环境
+# 访问 http://你的IP:3000 进入 XFCE 桌面，打开终端运行注册程序
+
+services:
+  webtop:
+    image: lscr.io/linuxserver/webtop:debian-xfce
+    container_name: grok-register-webtop
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - LC_ALL=zh_CN.UTF-8
+      - LANG=zh_CN.UTF-8
+      # 可选：设置默认密码（首次登录会提示修改）
+      # - PASSWORD=changeme
+    volumes:
+      # 持久化 webtop 用户配置（桌面、壁纸、已安装软件等）
+      - ./webtop-config:/config
+      # 持久化 grok-register 的配置、账号输出、pending、cpa_auths 等
+      - ./data:/config/grok-register-data
+    ports:
+      - "3000:3000"
+    shm_size: "2gb"          # Chromium 需要足够的共享内存
+    restart: unless-stopped
+    # 如需使用宿主机代理，可取消下面两行并在容器内设置 http_proxy
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"

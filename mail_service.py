@@ -11,18 +11,21 @@ DUCKMAIL_API_BASE = "https://api.duckmail.sbs"
 
 YYDS_API_BASE = "https://maliapi.215.im/v1"
 
+MSMAIL_API_BASE = "https://msmail.cc"
+
 
 config = {}
 _cf_domain_index = 0
 _cloudmail_domain_index = 0
-_OWN_NAMES = {'cloudmail_get_email_and_token', 'get_messages', 'cloudflare_get_messages', 'get_yyds_api_key', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_oai_code', 'get_email_provider', 'cloudflare_get_domains', 'extract_verification_code', 'get_cloudflare_api_base', 'cloudflare_apply_auth_params', 'duckmail_get_oai_code', 'create_account', 'get_yyds_jwt', 'get_message_detail', 'yyds_create_account', 'get_duckmail_api_key', 'get_cloudflare_path', 'cloudflare_create_account', 'cloudflare_get_token', 'cloudflare_get_oai_code', 'get_cloudmail_public_token', 'generate_username', 'yyds_get_message_detail', 'cloudflare_next_default_domain', 'yyds_get_messages', 'yyds_get_token', 'get_domains', 'get_token', 'cloudflare_create_temp_address', 'get_cloudflare_api_key', 'get_cloudmail_path', 'get_cloudmail_api_base', 'cloudmail_get_oai_code', 'cloudflare_build_headers', 'cloudflare_is_admin_create_path', 'cloudmail_next_domain', 'cloudflare_get_message_detail', 'cloudmail_get_messages', 'get_user_agent', 'yyds_pick_domain', '_pick_list_payload', 'get_email_and_token', 'get_oai_code', 'get_cloudflare_auth_mode', 'pick_domain'}
+_msmail_domain_index = 0
+_OWN_NAMES = {'cloudmail_get_email_and_token', 'get_messages', 'cloudflare_get_messages', 'get_yyds_api_key', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_oai_code', 'get_email_provider', 'cloudflare_get_domains', 'extract_verification_code', 'get_cloudflare_api_base', 'cloudflare_apply_auth_params', 'duckmail_get_oai_code', 'create_account', 'get_yyds_jwt', 'get_message_detail', 'yyds_create_account', 'get_duckmail_api_key', 'get_cloudflare_path', 'cloudflare_create_account', 'cloudflare_get_token', 'cloudflare_get_oai_code', 'get_cloudmail_public_token', 'generate_username', 'yyds_get_message_detail', 'cloudflare_next_default_domain', 'yyds_get_messages', 'yyds_get_token', 'get_domains', 'get_token', 'cloudflare_create_temp_address', 'get_cloudflare_api_key', 'get_cloudmail_path', 'get_cloudmail_api_base', 'cloudmail_get_oai_code', 'cloudflare_build_headers', 'cloudflare_is_admin_create_path', 'cloudmail_next_domain', 'cloudflare_get_message_detail', 'cloudmail_get_messages', 'get_user_agent', 'yyds_pick_domain', '_pick_list_payload', 'get_email_and_token', 'get_oai_code', 'get_cloudflare_auth_mode', 'pick_domain', 'msmail_get_email_and_token', 'msmail_get_messages', 'msmail_get_message_detail', 'msmail_get_oai_code', 'msmail_create_email', 'msmail_get_domains', 'msmail_next_domain', 'get_msmail_api_base', 'get_msmail_api_key'}
 
 
 def bind_runtime(namespace):
     global config
     config = namespace.get("config", config)
     for name, value in namespace.items():
-        if name.startswith("__") or name in _OWN_NAMES or name in {"config", "_cf_domain_index", "_cloudmail_domain_index"}:
+        if name.startswith("__") or name in _OWN_NAMES or name in {"config", "_cf_domain_index", "_cloudmail_domain_index", "_msmail_domain_index"}:
             continue
         globals()[name] = value
 
@@ -562,6 +565,8 @@ def get_email_and_token(api_key=None):
         return yyds_get_email_and_token(api_key=api_key, jwt=get_yyds_jwt())
     if provider == "cloudmail":
         return cloudmail_get_email_and_token()
+    if provider == "msmail":
+        return msmail_get_email_and_token()
     if provider == "cloudflare":
         api_base = get_cloudflare_api_base()
         if not api_base:
@@ -888,8 +893,286 @@ def yyds_pick_domain(api_key=None, jwt=None):
     raise Exception("YYDS 无已验证域名可用")
 
 
+def get_msmail_api_base():
+    """获取 MSMmail API 基础地址。
+    优先使用 config.msmail_api_base，未配置则回退到 https://msmail.cc。
+    """
+    base = str(config.get("msmail_api_base", "") or "").strip().rstrip("/")
+    if base:
+        return base
+    return MSMAIL_API_BASE
 
-class CloudflareMailClient:
+
+def get_msmail_api_key():
+    """获取 MSMmail 的 X-API-Key。"""
+    return str(config.get("msmail_api_key", "") or "").strip()
+
+
+def msmail_get_domains():
+    """调用 GET /api/config 获取系统可用域名列表。
+    返回值：域名字符串列表，例如 ['xoygedk.cn', ...]
+    注意：/api/config 返回字段为 emailDomains，是逗号分隔字符串。
+    """
+    api_base = get_msmail_api_base()
+    api_key = get_msmail_api_key()
+    headers = {}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    resp = http_get(f"{api_base}/api/config", headers=headers, timeout=20)
+    resp.raise_for_status()
+    data = resp.json()
+    raw = str(data.get("emailDomains", "") or "")
+    domains = [d.strip() for d in raw.split(",") if d.strip()]
+    return domains
+
+
+def msmail_next_domain():
+    """轮换选择 MSMmail 域名。
+    优先使用配置中的 msmail_domains；为空则调用 /api/config 获取；
+    仍为空则使用兜底域名。
+    """
+    global _msmail_domain_index
+    domains = [x.strip() for x in str(config.get("msmail_domains", "") or "").split(",") if x.strip()]
+    if not domains:
+        try:
+            domains = msmail_get_domains()
+        except Exception:
+            domains = []
+    if not domains:
+        domains = ["xoygedk.cn"]
+    domain = domains[_msmail_domain_index % len(domains)]
+    _msmail_domain_index += 1
+    return domain
+
+
+def msmail_create_email(expiry_ms=3600000, domain=None, name=None):
+    """创建临时邮箱。
+    必填：expiryTime（毫秒）和 domain。
+    可选：name（邮箱前缀）。
+    返回：(email_id, address)
+    响应示例：{"id":"9927c0de-...","email":"abc@xoygedk.cn"}
+    """
+    api_base = get_msmail_api_base()
+    api_key = get_msmail_api_key()
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    if not domain:
+        domain = msmail_next_domain()
+    payload = {"expiryTime": int(expiry_ms)}
+    if domain:
+        payload["domain"] = domain
+    if name:
+        payload["name"] = str(name)
+    resp = http_post(f"{api_base}/api/emails/generate", json=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    email_id = data.get("id")
+    address = data.get("email")
+    if not email_id or not address:
+        raise Exception(f"MSMail 生成邮箱失败，返回: {data}")
+    return email_id, address
+
+
+def msmail_get_email_and_token():
+    """为 email_provider=msmail 创建邮箱并返回 (address, dev_token)。
+    完整流程：
+      1) 读取 api_key / api_base
+      2) 调用 msmail_create_email（必须带 expiryTime+domain）
+      3) 返回 address + 占位 dev_token 'msmail:{emailId}'
+    dev_token 不含敏感信息，仅用于轮询时携带 emailId。
+    """
+    api_base = get_msmail_api_base()
+    api_key = get_msmail_api_key()
+    if not api_base:
+        raise Exception("MSMail API Base 未配置且无默认值")
+    # api_key 可选：若实例公开则可为空；需要时会在请求时 401/403
+    try:
+        email_id, address = msmail_create_email(expiry_ms=3600000)
+    except Exception as exc:
+        raise Exception(f"MSMail 创建邮箱失败: {exc}") from exc
+    dev_token = f"msmail:{email_id}"
+    return address, dev_token
+
+
+def msmail_get_messages(email_id, cursor=None):
+    """拉取邮箱消息列表。
+    接口：GET /api/emails/{emailId}?cursor=...
+    返回：(messages_list, nextCursor)
+    messages 可能为空；nextCursor 用于分页。
+    """
+    api_base = get_msmail_api_base()
+    api_key = get_msmail_api_key()
+    headers = {}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    url = f"{api_base}/api/emails/{email_id}"
+    params = {}
+    if cursor:
+        params["cursor"] = cursor
+    resp = http_get(url, headers=headers, params=params, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    messages = data.get("messages") or []
+    next_cursor = data.get("nextCursor")
+    return messages, next_cursor
+
+
+def msmail_get_message_detail(email_id, message_id):
+    """获取单封邮件详情，用于补全正文/主题。
+    接口：GET /api/emails/{emailId}/{messageId}
+    """
+    api_base = get_msmail_api_base()
+    api_key = get_msmail_api_key()
+    headers = {}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    url = f"{api_base}/api/emails/{email_id}/{message_id}"
+    resp = http_get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def msmail_get_oai_code(
+    dev_token,
+    email,
+    timeout=180,
+    poll_interval=3,
+    log_callback=None,
+    cancel_callback=None,
+    resend_callback=None,
+):
+    """MSMail 验证码轮询主循环。
+    流程：
+      - 从 dev_token 解析 emailId
+      - 周期调用 msmail_get_messages
+      - 对每条消息尝试 msmail_get_message_detail 补正文
+      - 复用 extract_verification_code 提取 3-3 形式或数字码
+      - 支持 resend_callback（页面点击重发）
+      - 支持 cancel_callback 及时退出
+    去重：同一 msgId 最多尝试 5 次。
+    """
+    if not dev_token or not str(dev_token).startswith("msmail:"):
+        raise Exception("MSMail dev_token 无效，应为 'msmail:{emailId}'")
+    email_id = str(dev_token).split(":", 1)[1]
+    deadline = time.time() + timeout
+    seen_attempts = {}
+    next_resend_at = time.time() + 35
+    last_cursor = None
+    while time.time() < deadline:
+        raise_if_cancelled(cancel_callback)
+        if resend_callback and time.time() >= next_resend_at:
+            try:
+                resend_callback()
+                if log_callback:
+                    log_callback("[*] 已触发重新发送验证码")
+            except Exception as exc:
+                if log_callback:
+                    log_callback(f"[Debug] 触发重发验证码失败: {exc}")
+            next_resend_at = time.time() + 35
+        try:
+            messages, next_cursor = msmail_get_messages(email_id, cursor=last_cursor)
+        except Exception as exc:
+            if log_callback:
+                log_callback(f"[Debug] MSMmail 拉取邮件列表失败: {exc}")
+            sleep_with_cancel(poll_interval, cancel_callback)
+            continue
+        if log_callback:
+            log_callback(f"[Debug] MSMmail 本轮邮件数量: {len(messages)}")
+        for msg in messages:
+            msg_id = msg.get("id") or msg.get("messageId") or msg.get("msgId")
+            if not msg_id:
+                continue
+            attempt = int(seen_attempts.get(msg_id, 0))
+            if attempt >= 5:
+                continue
+            seen_attempts[msg_id] = attempt + 1
+            # 尽力匹配收件地址（可能在列表或详情中）
+            to_addr = str(msg.get("to") or msg.get("toAddress") or msg.get("recipient") or "").lower()
+            combined = normalize_mail_body(msg)
+            subject = str(msg.get("subject", "") or "")
+            if log_callback:
+                log_callback(f"[Debug] MSMmail 收到邮件: {subject}")
+            try:
+                detail = msmail_get_message_detail(email_id, msg_id)
+                detail_body = normalize_mail_body(detail)
+                if detail_body:
+                    combined += "\n" + detail_body
+                if not subject:
+                    subject = str(detail.get("subject", "") or "")
+            except Exception as exc:
+                if log_callback:
+                    log_callback(f"[Debug] MSMmail 详情接口失败，改用列表内容: {exc}")
+            code = extract_verification_code(combined, subject)
+            if code:
+                if log_callback:
+                    log_callback(f"[*] MSMmail 从邮件中提取到验证码: {code}")
+                return code
+            elif log_callback:
+                log_callback(f"[Debug] MSMmail 邮件已解析但未提取到验证码 id={msg_id} attempt={seen_attempts[msg_id]}")
+        last_cursor = next_cursor
+        sleep_with_cancel(poll_interval, cancel_callback)
+    raise Exception(f"MSMail 在 {timeout}s 内未收到验证码邮件")
+
+
+def get_oai_code(
+    dev_token,
+    email,
+    timeout=180,
+    poll_interval=3,
+    log_callback=None,
+    cancel_callback=None,
+    resend_callback=None,
+):
+    provider = get_email_provider()
+    if provider == "yyds":
+        return yyds_get_oai_code(
+            dev_token,
+            email,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            log_callback=log_callback,
+            jwt=get_yyds_jwt(),
+            cancel_callback=cancel_callback,
+        )
+    if provider == "cloudmail":
+        return cloudmail_get_oai_code(
+            dev_token,
+            email,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            log_callback=log_callback,
+            cancel_callback=cancel_callback,
+            resend_callback=resend_callback,
+        )
+    if provider == "cloudflare":
+        return cloudflare_get_oai_code(
+            dev_token,
+            email,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            log_callback=log_callback,
+            cancel_callback=cancel_callback,
+            resend_callback=resend_callback,
+        )
+    if provider == "msmail":
+        return msmail_get_oai_code(
+            dev_token,
+            email,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            log_callback=log_callback,
+            cancel_callback=cancel_callback,
+            resend_callback=resend_callback,
+        )
+    return duckmail_get_oai_code(
+        dev_token,
+        email,
+        timeout=timeout,
+        poll_interval=poll_interval,
+        log_callback=log_callback,
+        cancel_callback=cancel_callback,
+    )
     """Standalone Cloudflare mail client used by the debug CLI."""
     def __init__(self, api_base, auth_mode="none", api_key="", create_path="/api/new_address", timeout=20):
         self.api_base = str(api_base or "").rstrip("/")

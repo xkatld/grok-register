@@ -1,6 +1,6 @@
 <div align="center">
 
-[![Grok Register — GUI and CLI registration automation toolkit](assets/banner.png)](https://github.com/AaronL725/grok-register)
+[![Grok Register — GUI and CLI registration automation toolkit](assets/banner.png)](https://github.com/xkatld/grok-register)
 
 Grok Register 是一个面向自动化流程研究、测试环境验证和个人学习的 Python 工具。项目提供 GUI / CLI、四种临时邮箱接入、Chromium 页面自动化、账号安全落盘、pending 恢复、grok2api token 入池，以及可选的 CPA xAI OIDC 凭证导出。
 
@@ -14,11 +14,11 @@ Grok Register 是一个面向自动化流程研究、测试环境验证和个人
 </p>
 
 <p align="center">
- <a href="https://www.star-history.com/aaronl725/grok-register">
+ <a href="https://www.star-history.com/xkatld/grok-register">
   <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=AaronL725/grok-register&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=AaronL725/grok-register" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=AaronL725/grok-register" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=xkatld/grok-register&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=xkatld/grok-register" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=xkatld/grok-register" />
   </picture>
  </a>
 </p>
@@ -96,7 +96,7 @@ Grok Register 是一个面向自动化流程研究、测试环境验证和个人
 克隆仓库：
 
 ```bash
-git clone https://github.com/AaronL725/grok-register.git
+git clone https://github.com/xkatld/grok-register.git
 cd grok-register
 ```
 
@@ -492,10 +492,10 @@ Thanks to [linux.do](https://linux.do) — a vibrant tech community where this p
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=AaronL725%2Fgrok-register&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=xkatld%2Fgrok-register&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=AaronL725/grok-register&type=date&theme=dark&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=AaronL725/grok-register&type=date&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AaronL725/grok-register&type=date&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=xkatld/grok-register&type=date&theme=dark&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=xkatld/grok-register&type=date&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=xkatld/grok-register&type=date&legend=top-left&sealed_token=uCM--S2xEp0n8rFUZHUg6wUJOgYcfO4XEVCIF9UZAT04YjL9YsMEOVOGAOlQfqwsoS7cQef0Rwc1cYCY4lAmTuMmcg-hKzNnx1A7KNekuCXQotFd4YifLIkvJWOEy5vxiREJX80Mwxbr8F-3GfCv0utIsQz_iq19nS57svUqwv0mSosV8OTxqXTLjmsI" />
  </picture>
 </a>

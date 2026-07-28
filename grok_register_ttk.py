@@ -285,9 +285,9 @@ for _name in ['get_configured_proxy', 'get_proxies', '_parse_proxy_url', '_safe_
         globals()[_name] = _make_compat_proxy(_browser_runtime, _name, _bind_browser_runtime)
 for _name in ['resolve_grok2api_local_token_file', '_normalize_sso_token', 'add_token_to_grok2api_local_pool', 'get_grok2api_remote_api_bases', 'add_token_to_grok2api_remote_pool', 'add_token_to_grok2api_pools']:
     globals()[_name] = _make_compat_proxy(_account_outputs, _name, _bind_account_outputs)
-_MAIL_ORIGINALS = dict((name, getattr(_mail_service, name)) for name in ['_pick_list_payload', 'cloudflare_apply_auth_params', 'cloudflare_build_headers', 'cloudflare_create_account', 'cloudflare_create_temp_address', 'cloudflare_get_domains', 'cloudflare_get_message_detail', 'cloudflare_get_messages', 'cloudflare_get_oai_code', 'cloudflare_get_token', 'cloudflare_is_admin_create_path', 'cloudflare_next_default_domain', 'cloudmail_get_email_and_token', 'cloudmail_get_messages', 'cloudmail_get_oai_code', 'cloudmail_next_domain', 'create_account', 'duckmail_get_oai_code', 'extract_verification_code', 'generate_username', 'get_cloudflare_api_base', 'get_cloudflare_api_key', 'get_cloudflare_auth_mode', 'get_cloudflare_path', 'get_cloudmail_api_base', 'get_cloudmail_path', 'get_cloudmail_public_token', 'get_domains', 'get_duckmail_api_key', 'get_email_and_token', 'get_email_provider', 'get_message_detail', 'get_messages', 'get_oai_code', 'get_token', 'get_user_agent', 'get_yyds_api_key', 'get_yyds_jwt', 'pick_domain', 'yyds_create_account', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_message_detail', 'yyds_get_messages', 'yyds_get_oai_code', 'yyds_get_token', 'yyds_pick_domain'])
+_MAIL_ORIGINALS = dict((name, getattr(_mail_service, name)) for name in ['_pick_list_payload', 'cloudflare_apply_auth_params', 'cloudflare_build_headers', 'cloudflare_create_account', 'cloudflare_create_temp_address', 'cloudflare_get_domains', 'cloudflare_get_message_detail', 'cloudflare_get_messages', 'cloudflare_get_oai_code', 'cloudflare_get_token', 'cloudflare_is_admin_create_path', 'cloudflare_next_default_domain', 'cloudmail_get_email_and_token', 'cloudmail_get_messages', 'cloudmail_get_oai_code', 'cloudmail_next_domain', 'create_account', 'duckmail_get_oai_code', 'extract_verification_code', 'generate_username', 'get_cloudflare_api_base', 'get_cloudflare_api_key', 'get_cloudflare_auth_mode', 'get_cloudflare_path', 'get_cloudmail_api_base', 'get_cloudmail_path', 'get_cloudmail_public_token', 'get_domains', 'get_duckmail_api_key', 'get_email_and_token', 'get_email_provider', 'get_message_detail', 'get_messages', 'get_oai_code', 'get_token', 'get_user_agent', 'get_yyds_api_key', 'get_yyds_jwt', 'pick_domain', 'yyds_create_account', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_message_detail', 'yyds_get_messages', 'yyds_get_oai_code', 'yyds_get_token', 'yyds_pick_domain', 'msmail_get_email_and_token', 'msmail_get_messages', 'msmail_get_message_detail', 'msmail_get_oai_code', 'msmail_create_email', 'msmail_get_domains', 'msmail_next_domain', 'get_msmail_api_base', 'get_msmail_api_key'])
 _MAIL_COMPAT_PROXIES = dict()
-for _name in ['_pick_list_payload', 'cloudflare_apply_auth_params', 'cloudflare_build_headers', 'cloudflare_create_account', 'cloudflare_create_temp_address', 'cloudflare_get_domains', 'cloudflare_get_message_detail', 'cloudflare_get_messages', 'cloudflare_get_oai_code', 'cloudflare_get_token', 'cloudflare_is_admin_create_path', 'cloudflare_next_default_domain', 'cloudmail_get_email_and_token', 'cloudmail_get_messages', 'cloudmail_get_oai_code', 'cloudmail_next_domain', 'create_account', 'duckmail_get_oai_code', 'extract_verification_code', 'generate_username', 'get_cloudflare_api_base', 'get_cloudflare_api_key', 'get_cloudflare_auth_mode', 'get_cloudflare_path', 'get_cloudmail_api_base', 'get_cloudmail_path', 'get_cloudmail_public_token', 'get_domains', 'get_duckmail_api_key', 'get_email_and_token', 'get_email_provider', 'get_message_detail', 'get_messages', 'get_oai_code', 'get_token', 'get_user_agent', 'get_yyds_api_key', 'get_yyds_jwt', 'pick_domain', 'yyds_create_account', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_message_detail', 'yyds_get_messages', 'yyds_get_oai_code', 'yyds_get_token', 'yyds_pick_domain']:
+for _name in ['_pick_list_payload', 'cloudflare_apply_auth_params', 'cloudflare_build_headers', 'cloudflare_create_account', 'cloudflare_create_temp_address', 'cloudflare_get_domains', 'cloudflare_get_message_detail', 'cloudflare_get_messages', 'cloudflare_get_oai_code', 'cloudflare_get_token', 'cloudflare_is_admin_create_path', 'cloudflare_next_default_domain', 'cloudmail_get_email_and_token', 'cloudmail_get_messages', 'cloudmail_get_oai_code', 'cloudmail_next_domain', 'create_account', 'duckmail_get_oai_code', 'extract_verification_code', 'generate_username', 'get_cloudflare_api_base', 'get_cloudflare_api_key', 'get_cloudflare_auth_mode', 'get_cloudflare_path', 'get_cloudmail_api_base', 'get_cloudmail_path', 'get_cloudmail_public_token', 'get_domains', 'get_duckmail_api_key', 'get_email_and_token', 'get_email_provider', 'get_message_detail', 'get_messages', 'get_oai_code', 'get_token', 'get_user_agent', 'get_yyds_api_key', 'get_yyds_jwt', 'pick_domain', 'yyds_create_account', 'yyds_generate_username', 'yyds_get_domains', 'yyds_get_email_and_token', 'yyds_get_message_detail', 'yyds_get_messages', 'yyds_get_oai_code', 'yyds_get_token', 'yyds_pick_domain', 'msmail_get_email_and_token', 'msmail_get_messages', 'msmail_get_message_detail', 'msmail_get_oai_code', 'msmail_create_email', 'msmail_get_domains', 'msmail_next_domain', 'get_msmail_api_base', 'get_msmail_api_key']:
     _proxy = _make_compat_proxy(_mail_service, _name, _bind_mail_service)
     _MAIL_COMPAT_PROXIES[_name] = _proxy
     globals()[_name] = _proxy
@@ -302,7 +302,7 @@ def __getattr__(name):
         return _registration_browser.SIGNUP_URL
     if name in {"browser", "page", "browser_proxy_bridge", "browser_started_with_proxy", "cf_clearance"}:
         return getattr(_registration_browser, name)
-    if name in {"_cf_domain_index", "_cloudmail_domain_index"}:
+    if name in {"_cf_domain_index", "_cloudmail_domain_index", "_msmail_domain_index"}:
         return getattr(_mail_service, name)
     raise AttributeError(name)
 
@@ -324,7 +324,7 @@ class _CompatibilityModule(types.ModuleType):
                 _app_config.config.clear()
                 _app_config.config.update(value)
             value = _app_config.config
-        elif name in {"_cf_domain_index", "_cloudmail_domain_index"}:
+        elif name in {"_cf_domain_index", "_cloudmail_domain_index", "_msmail_domain_index"}:
             setattr(_mail_service, name, int(value))
             self.__dict__.pop(name, None)
             return
@@ -732,7 +732,7 @@ class GrokRegisterGUI:
 
         add_label(0, 0, "邮箱服务商:")
         self.email_provider_var = tk.StringVar(value=config.get("email_provider", "duckmail"))
-        self.email_provider_combo = tk_option_menu(config_frame, self.email_provider_var, ["duckmail", "yyds", "cloudflare", "cloudmail"], width=12)
+        self.email_provider_combo = tk_option_menu(config_frame, self.email_provider_var, ["duckmail", "yyds", "cloudflare", "cloudmail", "msmail"], width=12)
         add_field(self.email_provider_combo, 0, 1, sticky=tk.W)
 
         add_label(0, 2, "注册数量:")
@@ -814,7 +814,22 @@ class GrokRegisterGUI:
         self.cloudmail_public_token_entry = tk_entry(config_frame, textvariable=self.cloudmail_public_token_var, width=72)
         add_field(self.cloudmail_public_token_entry, 6, 1, columnspan=3)
 
-        add_label(7, 0, "grok2api 本地入池:")
+        add_label(7, 0, "MSMail API Key:")
+        self.msmail_api_key_var = tk.StringVar(value=config.get("msmail_api_key", ""))
+        self.msmail_api_key_entry = tk_entry(config_frame, textvariable=self.msmail_api_key_var, width=34)
+        add_field(self.msmail_api_key_entry, 7, 1)
+
+        add_label(7, 2, "MSMail API Base:")
+        self.msmail_api_base_var = tk.StringVar(value=config.get("msmail_api_base", ""))
+        self.msmail_api_base_entry = tk_entry(config_frame, textvariable=self.msmail_api_base_var, width=34)
+        add_field(self.msmail_api_base_entry, 7, 3)
+
+        add_label(8, 0, "MSMail 域名(可选):")
+        self.msmail_domains_var = tk.StringVar(value=config.get("msmail_domains", ""))
+        self.msmail_domains_entry = tk_entry(config_frame, textvariable=self.msmail_domains_var, width=72)
+        add_field(self.msmail_domains_entry, 8, 1, columnspan=3)
+
+        add_label(9, 0, "grok2api 本地入池:")
         self.grok2api_local_auto_var = tk.BooleanVar(value=bool(config.get("grok2api_auto_add_local", True)))
         self.grok2api_local_auto_check = tk_checkbutton(config_frame, variable=self.grok2api_local_auto_var)
         add_field(self.grok2api_local_auto_check, 7, 1, sticky=tk.W)
@@ -986,6 +1001,9 @@ class GrokRegisterGUI:
         config["cloudmail_api_base"] = self.cloudmail_api_base_var.get().strip()
         config["cloudmail_public_token"] = self.cloudmail_public_token_var.get().strip()
         config["cloudmail_domains"] = self.cloudmail_domains_var.get().strip()
+        config["msmail_api_key"] = self.msmail_api_key_var.get().strip()
+        config["msmail_api_base"] = self.msmail_api_base_var.get().strip()
+        config["msmail_domains"] = self.msmail_domains_var.get().strip()
         config["grok2api_auto_add_local"] = bool(self.grok2api_local_auto_var.get())
         config["grok2api_local_token_file"] = self.grok2api_local_file_var.get().strip()
         config["grok2api_pool_name"] = self.grok2api_pool_name_var.get().strip() or "ssoBasic"

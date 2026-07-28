@@ -48,6 +48,9 @@ DEFAULT_CONFIG = {
     "email_provider": "duckmail",
     "yyds_api_key": "",
     "yyds_jwt": "",
+    "msmail_api_key": "",
+    "msmail_api_base": "",
+    "msmail_domains": "",
     "defaultDomains": "",
 }
 
@@ -107,7 +110,7 @@ def validate_config_structure(raw):
     for key in string_keys:
         cfg[key] = _require_string(cfg, key, path=key in path_keys)
     enums = {
-        "email_provider": {"duckmail", "yyds", "cloudflare", "cloudmail"},
+        "email_provider": {"duckmail", "yyds", "cloudflare", "cloudmail", "msmail"},
         "cloudflare_auth_mode": {"query-key", "bearer", "x-api-key", "x-admin-auth", "none"},
         "grok2api_pool_name": {"ssoBasic", "ssoSuper"},
     }
@@ -129,7 +132,7 @@ def validate_config_structure(raw):
         cfg[key] = value
 
     url_keys = {
-        "cloudflare_api_base", "cloudmail_api_base",
+        "cloudflare_api_base", "cloudmail_api_base", "msmail_api_base",
         "grok2api_remote_base", "cpa_base_url",
     }
     for key in url_keys:
@@ -161,6 +164,10 @@ def validate_run_requirements(cfg):
             raise ConfigError("Cloud Mail 模式缺少必需配置: " + ", ".join(missing))
     if provider == "yyds" and not (cfg["yyds_api_key"] or cfg["yyds_jwt"]):
         raise ConfigError("YYDS 模式需要至少配置 yyds_api_key 或 yyds_jwt")
+    if provider == "msmail":
+        # MSMmail 需要 API Key；api_base 可选（有默认 https://msmail.cc）
+        if not cfg.get("msmail_api_key"):
+            raise ConfigError("MSMail 模式需要配置 msmail_api_key")
     if cfg["grok2api_auto_add_remote"]:
         if not cfg["grok2api_remote_base"]:
             raise ConfigError("远端 token 入池缺少必需配置: grok2api_remote_base")

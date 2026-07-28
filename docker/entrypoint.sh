@@ -1,14 +1,4 @@
-#!/usr/bin/env bash
-# Entrypoint wrapper for grok-register on linuxserver/webtop.
-#
-# Goals:
-# 1. Seed a writable copy of the project to /config/grok-register (persistent via volume)
-# 2. Ensure sane defaults (config.json)
-# 3. Then hand off to the linuxserver s6 init (/init) so the XFCE desktop + web UI start normally.
-#
-# The image contains the pristine source at /app/grok-register (from Dockerfile COPY).
-# We copy it once (or when missing) into the mounted /config volume.
-
+#!/bin/bash
 set -euo pipefail
 
 APP_SRC="/app/grok-register"

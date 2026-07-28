@@ -105,13 +105,15 @@ RUN mkdir -p turnstilePatch && ls -la turnstilePatch || true
 # We ensure the app tree is readable.
 RUN chown -R abc:abc /app/grok-register || true
 
-# ---- Init hook ----
-# We provide a wrapper entrypoint that seeds the writable copy under /config,
-# then hands control to the base image's s6 init (/init) so the desktop + web UI start normally.
-COPY --chown=root:root docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Use our wrapper. It will exec /init at the end.
+COPY --chown=root:root docker/entrypoint.sh /tmp/raw.sh
+RUN set -eux; \
+    { \
+      printf '#!/bin/bash\n'; \
+      printf 'set -euo pipefail\n'; \
+      tail -n +3 /tmp/raw.sh | tr -d '\r'; \
+    } > /entrypoint.sh && \
+    chmod +x /entrypoint.sh && \
+    rm -f /tmp/raw.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 # No custom CMD — let the base image define the default desktop/web services.

@@ -385,6 +385,40 @@ def create_browser_options(browser_proxy="", extension_path=None):
     options.auto_port()
     options.set_timeouts(base=1)
     apply_browser_proxy_option(options, browser_proxy)
+
+    # Container / Linux / Docker friendly flags (critical inside webtop, docker, etc.)
+    # DrissionPage error "浏览器连接失败" on 127.0.0.1:port is almost always caused by
+    # Chromium sandbox + limited /dev/shm in containers.
+    for flag in (
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+        "--no-zygote",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ):
+        try:
+            options.set_argument(flag)
+        except Exception:
+            pass
+
+    # Explicitly pick a Chromium/Chrome binary if we can find one in common paths.
+    # This helps in minimal containers where DrissionPage's auto-detection may fail.
+    for candidate in (
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+    ):
+        if os.path.isfile(candidate):
+            try:
+                options.set_browser_path(candidate)
+            except Exception:
+                pass
+            break
+
     effective_extension = _extension_path if extension_path is None else str(extension_path or "")
     if effective_extension and os.path.exists(effective_extension):
         options.add_extension(effective_extension)

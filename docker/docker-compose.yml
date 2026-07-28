@@ -1,12 +1,19 @@
 version: "3.8"
 
 # 一键部署（有头 / GUI 可见浏览器）
-# 基于 linuxserver/webtop:debian-xfce，提供完整桌面环境
-# 访问 http://你的IP:3000 进入 XFCE 桌面，打开终端运行注册程序
+# 基于 linuxserver/webtop:debian-xfce + 自定义构建
+#
+# 重要：
+# - 必须在 docker/ 目录执行，并使用 --build
+# - 构建上下文是上级目录（..），这样才能 COPY 整个项目
+# - 容器启动后，项目可写副本在 /config/grok-register
 
 services:
   webtop:
-    image: lscr.io/linuxserver/webtop:debian-xfce
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: grok-register-webtop:latest
     container_name: grok-register-webtop
     environment:
       - PUID=1000

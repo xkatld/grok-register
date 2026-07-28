@@ -74,7 +74,7 @@ RUN set -eux; \
     ls -l /usr/bin/chromium* /usr/bin/google-chrome* 2>/dev/null || true
 
 # ---- App setup ----
-# Workdir for the project
+# Workdir for the project (source lives here in the image)
 WORKDIR /app/grok-register
 
 # Copy requirements first for better layer caching
@@ -88,33 +88,31 @@ RUN python3 -m venv /opt/venv \
 # Make venv default
 ENV PATH="/opt/venv/bin:${PATH}"
 
-# Copy the rest of the project
+# Copy the rest of the project (this brings grok_register_ttk.py, cpa_xai/, turnstilePatch/, etc.)
 COPY . .
 
-# Ensure turnstilePatch exists (browser extension for cloudflare turnstile bypass)
-# If empty in your build context, create a minimal placeholder dir so the app won't crash on add_extension
+# Build-time sanity check: ensure the main entry script is present in the image.
+# If this fails, the build context was wrong (e.g. building from docker/ dir instead of project root).
+RUN set -eux; \
+    ls -la /app/grok-register/grok_register_ttk.py || (echo 'ERROR: grok_register_ttk.py not found in image. Check build context.'; ls -la /app/grok-register || true; exit 1)
+
+# Ensure turnstilePatch dir exists (for Turnstile bypass extension).
+# If your build context has files in turnstilePatch/, they will be copied by the previous step.
 RUN mkdir -p turnstilePatch && ls -la turnstilePatch || true
 
-# ---- Permissions (match PUID/PGID from env) ----
-# linuxserver base runs as user abc (PUID=911, PGID=911 by default).
-# We keep the app under /app and allow the container user to access it.
-RUN chown -R abc:abc /app || true
+# ---- Permissions ----
+# The linuxserver base will manage ownership via PUID/PGID at runtime.
+# We ensure the app tree is readable.
+RUN chown -R abc:abc /app/grok-register || true
 
-# ---- Runtime user (from linuxserver base) ----
-# The base image drops to abc at runtime; keep that behavior.
-USER abc
+# ---- Init hook ----
+# We provide a wrapper entrypoint that seeds the writable copy under /config,
+# then hands control to the base image's s6 init (/init) so the desktop + web UI start normally.
+COPY --chown=root:root docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# ---- Entrypoint / default command ----
-# Start an XFCE desktop session (via s6 from linuxserver) and leave a terminal ready.
-# Users will typically open a terminal inside the desktop and run:
-#   cd /app/grok-register && python grok_register_ttk.py
-# Or use CLI: python grok_register_ttk.py cli
-#
-# We provide a tiny convenience launcher that also pre-creates config.json if missing.
-COPY --chown=abc:abc docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh || true
-
+# Use our wrapper. It will exec /init at the end.
 ENTRYPOINT ["/entrypoint.sh"]
-# Default to a long-lived shell so the desktop stays up.
-# You can override with: docker compose run --rm webtop bash -lc "cd /app/grok-register && python grok_register_ttk.py cli"
-CMD ["sleep", "infinity"]
+
+# No custom CMD — let the base image define the default desktop/web services.
+# Users open a terminal in the XFCE desktop (via :3000) and run the app from /config/grok-register.

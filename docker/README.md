@@ -2,22 +2,51 @@
 
 本目录提供基于 `linuxserver/webtop:debian-xfce` 的 Docker 方案，浏览器窗口在桌面内可见，适合观察与调试。
 
-## 快速开始
+## 快速开始（关键步骤）
+
+**必须在 `docker/` 目录下执行，并且带 `--build`**：
 
 ```bash
 cd docker
 
-# 1) 启动
+# 完整重建（推荐第一次或代码有更新时）
+docker compose down
+docker compose build --no-cache
 docker compose up -d
 
-# 2) 打开浏览器访问桌面
-#    http://你的宿主机IP:3000
-#    默认用户/密码见 linuxserver/webtop 文档（首次可设置）
+# 或者简写（如果之前已经 build 过）
+docker compose up -d --build
+```
 
-# 3) 在桌面内打开终端，执行：
+然后：
+
+1. 浏览器打开桌面：`http://你的宿主机IP:3000`
+2. 在 XFCE 桌面里打开终端（Terminal / xfce4-terminal）
+3. 执行：
+
+```bash
 cd /config/grok-register
 python grok_register_ttk.py
 ```
+
+### 为什么之前会报 “No such file or directory”？
+
+你看到的错误：
+
+```
+bash: cd: /config/grok-register: No such file or directory
+python: can't open file '/config/Desktop/grok_register_ttk.py'
+```
+
+说明你当前运行的容器**不是我们自定义构建的镜像**，而是直接跑的 `linuxserver/webtop:debian-xfce`（或者旧的缓存镜像），里面根本没有把项目代码拷贝进去。
+
+常见原因：
+- 在错误的目录（项目根目录）执行了 `docker compose up`
+- 执行时没有加 `--build`
+- 之前用你自己贴的那个只有 `image: linuxserver/webtop...` 的 compose 文件启动过
+- 构建上下文错误（从 `docker/` 目录直接 `docker build .`）
+
+解决方案：**删除旧容器，用正确方式重新 build**（见上面的命令）。
 
 ## 目录结构
 

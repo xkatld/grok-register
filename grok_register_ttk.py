@@ -278,7 +278,11 @@ def _bind_registration_browser():
 
 
 LocalAuthProxyBridge = _browser_runtime.LocalAuthProxyBridge
-for _name in ['get_configured_proxy', 'get_proxies', '_parse_proxy_url', '_safe_proxy_port', '_proxy_has_auth', '_strip_proxy_auth', '_proxy_endpoint_terms', 'is_proxy_connection_error', 'page_has_proxy_error', '_ReusableThreadingTCPServer', '_proxy_recv_until_headers', '_proxy_relay', '_LocalAuthProxyBridgeHandler', 'LocalAuthProxyBridge', 'prepare_browser_proxy', 'apply_browser_proxy_option', 'create_browser_options', '_build_request_kwargs', 'http_get', 'http_post']:
+for _name in ['get_configured_proxy', 'get_proxies', '_parse_proxy_url', '_safe_proxy_port', '_proxy_has_auth', '_strip_proxy_auth', '_proxy_endpoint_terms', 'is_proxy_connection_error', 'page_has_proxy_error', '_ReusableThreadingTCPServer', '_proxy_recv_until_headers', '_proxy_relay', '_LocalAuthProxyBridgeHandler', 'LocalAuthProxyBridge', 'prepare_browser_proxy', 'apply_browser_proxy_option', 'create_browser_options', '_build_request_kwargs', 'http_get', 'http_post',
+              'get_proxy_pool', 'pick_next_proxy', 'set_active_proxy', 'rotate_proxy_for_next', 'get_proxy_rotation_mode',
+              'test_proxy', 'test_proxies', 'test_current_pool', 'get_proxy_only_tested', 'get_tested_good', 'get_tested_bad',
+              'mark_proxy_good', 'mark_proxy_bad', 'mark_current_proxy_bad', 'clear_proxy_test_results', 'apply_proxy_test_filter',
+              'get_effective_proxy_pool', 'refresh_proxy_pool', 'parse_proxy_lines']:
     if _name.startswith("_") and _name in {"_ReusableThreadingTCPServer", "_LocalAuthProxyBridgeHandler", "_proxy_recv_until_headers", "_proxy_relay"}:
         continue
     if _name != "LocalAuthProxyBridge":
@@ -658,6 +662,7 @@ def run_registration_common(count, log_callback, cancel_callback, accounts_outpu
         sleep=lambda seconds: sleep_with_cancel(seconds, cancel_callback),
         cancelled_exception=RegistrationCancelled,
         retry_exception=AccountRetryNeeded,
+        rotate_proxy=lambda: rotate_proxy_for_next(log_callback=log_callback),
     )
     return run_batch(
         count=count,
@@ -758,10 +763,43 @@ class GrokRegisterGUI:
         self.nsfw_check = tk_checkbutton(config_frame, text="注册后开启 NSFW", variable=self.nsfw_var)
         add_field(self.nsfw_check, 1, 1, sticky=tk.W)
 
-        add_label(1, 2, "代理（可选）:")
-        self.proxy_var = tk.StringVar(value=config.get("proxy", ""))
-        self.proxy_entry = tk_entry(config_frame, textvariable=self.proxy_var, width=34)
-        add_field(self.proxy_entry, 1, 3)
+        add_label(1, 2, "代理（支持多行/逗号/分号）：")
+        # 改为多行 Text，支持直接粘贴整块代理列表
+        proxy_text_frame = tk.Frame(config_frame, bg=UI_PANEL_BG)
+        self.proxy_text = tk.Text(
+            proxy_text_frame,
+            height=4,
+            width=34,
+            bg=UI_ENTRY_BG,
+            fg=UI_FG,
+            insertbackground=UI_FG,
+            relief=tk.SOLID,
+            borderwidth=1,
+            highlightthickness=1,
+            highlightbackground="#555555",
+            wrap="none",
+        )
+        self.proxy_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
+        # 初始化填充
+        init_proxy = str(config.get("proxy", "") or "")
+        if init_proxy:
+            self.proxy_text.insert("1.0", init_proxy)
+        add_field(proxy_text_frame, 1, 3)
+
+        add_label(1, 4, "轮换:")
+        self.proxy_rotation_var = tk.StringVar(value=str(config.get("proxy_rotation", "round_robin")))
+        self.proxy_rotation_combo = tk_option_menu(
+            config_frame, self.proxy_rotation_var, ["round_robin", "random"], width=10
+        )
+        add_field(self.proxy_rotation_combo, 1, 5, sticky=tk.W)
+
+        # 仅使用测试通过的代理
+        add_label(2, 2, "")
+        self.proxy_only_tested_var = tk.BooleanVar(value=bool(config.get("proxy_only_tested", False)))
+        self.proxy_only_tested_check = tk_checkbutton(
+            config_frame, text="仅使用测试通过的代理（失败自动跳过坏代理）", variable=self.proxy_only_tested_var
+        )
+        add_field(self.proxy_only_tested_check, 2, 3, columnspan=3, sticky=tk.W)
 
         add_label(2, 0, "DuckMail API Key:")
         self.api_key_var = tk.StringVar(value=config.get("duckmail_api_key", ""))
@@ -889,6 +927,8 @@ class GrokRegisterGUI:
         self.stop_btn.pack(side=tk.LEFT, padx=5)
         self.clear_btn = tk_button(btn_frame, text="清空日志", command=self.clear_log)
         self.clear_btn.pack(side=tk.LEFT, padx=5)
+        self.test_proxy_btn = tk_button(btn_frame, text="测试代理", command=self.test_proxies_clicked)
+        self.test_proxy_btn.pack(side=tk.LEFT, padx=5)
 
         status_frame = tk.Frame(main_frame, bg=UI_BG)
         status_frame.grid(row=2, column=0, sticky=tk.EW, pady=(0, 6))
@@ -969,6 +1009,33 @@ class GrokRegisterGUI:
     def clear_log(self):
         self.ui_queue.put(("clear_log",))
 
+    def test_proxies_clicked(self):
+        """点击“测试代理”按钮的处理：读取当前多行代理文本，批量测试并打印结果。"""
+        try:
+            try:
+                raw = self.proxy_text.get("1.0", tk.END)
+            except Exception:
+                raw = ""
+            from browser_runtime import parse_proxy_lines as _parse_proxy_lines, test_proxies as _test_proxies
+            pool = _parse_proxy_lines(raw)
+            if not pool:
+                self.log("[ProxyTest] 当前没有可测试的代理")
+                return
+            self.log(f"[ProxyTest] 开始测试 {len(pool)} 个代理 ...")
+            def log_cb(m):
+                self.log(m)
+            results = _test_proxies(pool, timeout=12, log_callback=log_cb)
+            ok = sum(1 for r in results if r.get("ok"))
+            self.log(f"[ProxyTest] 完成：{ok}/{len(results)} 通过")
+            # 应用过滤：标记好坏、刷新索引
+            try:
+                from browser_runtime import apply_proxy_test_filter
+                apply_proxy_test_filter(results, log_callback=self.log)
+            except Exception:
+                pass
+        except Exception as exc:
+            self.log(f"[!] 测试代理失败: {exc}")
+
     def update_stats(self):
         self.ui_queue.put(("stats", self.success_count, self.fail_count, self.registered_unsaved_count, self.postprocess_warning_count))
 
@@ -993,7 +1060,25 @@ class GrokRegisterGUI:
 
         config["email_provider"] = self.email_provider_var.get().strip() or "duckmail"
         config["enable_nsfw"] = bool(self.nsfw_var.get())
-        config["proxy"] = self.proxy_var.get().strip()
+        # 从多行 Text 读取代理，保持换行
+        try:
+            proxy_text = self.proxy_text.get("1.0", tk.END)
+        except Exception:
+            proxy_text = ""
+        config["proxy"] = proxy_text.strip()
+        config["proxy_rotation"] = self.proxy_rotation_var.get().strip() or "round_robin"
+        # 读取“仅测试通过”设置（若存在）
+        try:
+            config["proxy_only_tested"] = bool(self.proxy_only_tested_var.get())
+        except Exception:
+            pass
+        # 刷新运行时代理池（支持多行/分隔符）
+        try:
+            from browser_runtime import refresh_proxy_pool, set_active_proxy
+            refresh_proxy_pool()
+            set_active_proxy("")  # 清空 active，让下一次 rotate 重新从池中选取
+        except Exception:
+            pass
         config["duckmail_api_key"] = self.api_key_var.get().strip()
         config["cloudflare_api_base"] = self.cloudflare_api_base_var.get().strip()
         config["cloudflare_api_key"] = self.cloudflare_api_key_var.get().strip()
@@ -1096,6 +1181,19 @@ class CliStopController:
 def cli_log(message):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     print(f"[{timestamp}] {message}", flush=True)
+
+
+def _parse_proxy_lines(raw):
+    """本地解析多行/分隔代理文本，供 GUI 使用。"""
+    try:
+        from browser_runtime import parse_proxy_lines as _p
+        return _p(raw)
+    except Exception:
+        import re
+        if not raw:
+            return []
+        parts = re.split(r"[\n,;]+", str(raw))
+        return [p.strip() for p in parts if p.strip()]
 
 
 def run_registration_cli(count):

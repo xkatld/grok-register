@@ -29,6 +29,7 @@ class RegistrationOperations:
     sleep: Callable[[float], None]
     cancelled_exception: type
     retry_exception: type
+    rotate_proxy: Callable[[], str] = None  # optional; rotates and returns chosen proxy for this slot
 
 
 @dataclass
@@ -216,6 +217,15 @@ def _prepare_next_account(result, settings, callbacks, ops):
         result.cancelled = True
         return False
     try:
+        # 进入下一个账号前，尝试轮换代理（如果提供 rotate_proxy）
+        if getattr(ops, "rotate_proxy", None):
+            try:
+                chosen = ops.rotate_proxy()
+                if chosen:
+                    callbacks.log(f"[*] 下一个账号使用代理: {chosen}")
+            except Exception as e:
+                callbacks.log(f"[!] 代理轮换异常: {e}")
+
         if ops.browser_missing():
             ops.start_browser()
         else:
@@ -242,6 +252,18 @@ def run_batch(count, callbacks, observer, ops, enable_nsfw=True, cleanup_interva
     retry_count_for_slot = 0
     last_cleanup_success_count = 0
     try:
+        # 首个账号前选取代理
+        if getattr(ops, "rotate_proxy", None):
+            try:
+                chosen = ops.rotate_proxy()
+                if chosen:
+                    callbacks.log(f"[*] 本次账号使用代理: {chosen}")
+                else:
+                    # 可能因为“仅测试通过”但尚无好代理
+                    callbacks.log("[*] 代理池为空或无可用测试通过代理，将使用直连")
+            except Exception as e:
+                callbacks.log(f"[!] 代理轮换异常: {e}")
+
         ops.start_browser()
         callbacks.log("[*] 浏览器已启动")
         while result.processed_count < settings.count:

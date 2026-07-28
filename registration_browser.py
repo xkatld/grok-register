@@ -227,6 +227,13 @@ def start_browser(log_callback=None, use_proxy=True):
             if log_callback:
                 mode = "代理" if proxy_enabled else "直连"
                 log_callback(f"[Debug] 浏览器{mode}启动失败(第{attempt}/4次): {exc}")
+            # 若看起来是代理问题，标记当前代理为坏
+            try:
+                if is_proxy_connection_error(exc) or page_has_proxy_error(getattr(globals(), "page", None)):
+                    from browser_runtime import mark_current_proxy_bad
+                    mark_current_proxy_bad(f"start_browser 异常(attempt {attempt})", log_callback=log_callback)
+            except Exception:
+                pass
             try:
                 if browser is not None:
                     browser.quit(del_data=True)
@@ -375,6 +382,12 @@ def open_signup_page(log_callback=None, cancel_callback=None):
         if browser_started_with_proxy and get_configured_proxy():
             if log_callback:
                 log_callback(f"[!] 浏览器代理访问注册页失败，自动回退直连: {e}")
+            # 标记当前代理为坏，触发下次轮换
+            try:
+                from browser_runtime import mark_current_proxy_bad
+                mark_current_proxy_bad("open_signup_page 异常", log_callback=log_callback)
+            except Exception:
+                pass
             restart_browser(log_callback=log_callback, use_proxy=False)
             _open_with_current_browser()
         else:
@@ -383,6 +396,11 @@ def open_signup_page(log_callback=None, cancel_callback=None):
     if browser_started_with_proxy and page_has_proxy_error(page):
         if log_callback:
             log_callback("[!] 浏览器页面显示代理错误，自动回退直连")
+        try:
+            from browser_runtime import mark_current_proxy_bad
+            mark_current_proxy_bad("page 代理错误", log_callback=log_callback)
+        except Exception:
+            pass
         restart_browser(log_callback=log_callback, use_proxy=False)
         _open_with_current_browser()
 

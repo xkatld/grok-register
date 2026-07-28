@@ -52,6 +52,8 @@ DEFAULT_CONFIG = {
     "msmail_api_base": "",
     "msmail_domains": "",
     "defaultDomains": "",
+    "proxy_rotation": "round_robin",
+    "proxy_only_tested": False,
 }
 
 
@@ -97,7 +99,7 @@ def validate_config_structure(raw):
         "enable_nsfw", "grok2api_auto_add_local", "grok2api_auto_add_remote",
         "grok2api_allow_legacy_full_save", "cpa_export_enabled",
         "cpa_copy_to_hotload", "cpa_headless", "cpa_force_standalone",
-        "cpa_mint_cookie_inject",
+        "cpa_mint_cookie_inject", "proxy_only_tested",
     )
     for key in bool_keys:
         cfg[key] = _require_bool(cfg, key)
@@ -113,6 +115,7 @@ def validate_config_structure(raw):
         "email_provider": {"duckmail", "yyds", "cloudflare", "cloudmail", "msmail"},
         "cloudflare_auth_mode": {"query-key", "bearer", "x-api-key", "x-admin-auth", "none"},
         "grok2api_pool_name": {"ssoBasic", "ssoSuper"},
+        "proxy_rotation": {"round_robin", "random"},
     }
     for key, allowed in enums.items():
         value = cfg.get(key, DEFAULT_CONFIG.get(key, ""))

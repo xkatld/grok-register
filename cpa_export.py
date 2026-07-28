@@ -38,12 +38,21 @@ class CpaExportSettings:
         hotload_dir = Path(hotload_value).expanduser() if hotload_value else None
         if hotload_dir is not None and not hotload_dir.is_absolute():
             hotload_dir = (_ROOT / hotload_dir).resolve()
+        # Prefer runtime active proxy (for multi-proxy rotation) over the static config value
+        runtime_proxy = ""
+        try:
+            # browser_runtime may expose get_active_proxy / get_configured_proxy
+            from browser_runtime import get_active_proxy, get_configured_proxy  # type: ignore
+            runtime_proxy = (get_active_proxy() or get_configured_proxy() or "").strip()
+        except Exception:
+            pass
+        proxy = str(cfg.get("cpa_proxy") or runtime_proxy or cfg.get("proxy") or "").strip()
         return cls(
             enabled=bool(cfg.get("cpa_export_enabled", True)),
             auth_dir=auth_dir,
             hotload_dir=hotload_dir,
             copy_to_hotload=bool(cfg.get("cpa_copy_to_hotload", False)),
-            proxy=str(cfg.get("cpa_proxy") or cfg.get("proxy") or "").strip(),
+            proxy=proxy,
             headless=bool(cfg.get("cpa_headless", False)),
             mint_timeout=float(cfg.get("cpa_mint_timeout_sec") or 300),
             request_timeout=float(cfg.get("cpa_oidc_request_timeout_sec") or 15),

@@ -623,6 +623,15 @@ def _append_account_line(path, email, password, sso):
     return append_account_line(path, email, password, sso)
 
 
+def _persist_sso_token(sso, log_callback=None):
+    from account_outputs import append_sso_token
+    try:
+        return append_sso_token(sso, log_callback=log_callback)
+    except Exception as exc:
+        log_exception("写入 sso.txt 失败", exc, log_callback)
+        return False
+
+
 def _queue_unsaved_account(path, payload, error, log_callback=None):
     from account_outputs import queue_unsaved_account
     try:
@@ -653,6 +662,7 @@ def run_registration_common(count, log_callback, cancel_callback, accounts_outpu
         enable_nsfw=lambda sso: enable_nsfw_for_token(sso, log_callback=log_callback),
         persist_account_line=lambda email, password, sso: _append_account_line(accounts_output_file, email, password, sso),
         queue_unsaved_result=lambda payload, error: _queue_unsaved_account(accounts_output_file, payload, error, log_callback),
+        persist_sso_token=lambda sso: _persist_sso_token(sso, log_callback),
         add_tokens=lambda sso, email: add_token_to_grok2api_pools(sso, email=email, log_callback=log_callback),
         export_cpa=lambda email, password, sso: maybe_export_cpa_xai_after_success(
             email=email, password=password, sso=sso,

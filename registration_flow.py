@@ -23,6 +23,7 @@ class RegistrationOperations:
     enable_nsfw: Callable[[str], Tuple[bool, str]]
     persist_account_line: Callable[[str, str, str], None]
     queue_unsaved_result: Callable[[Dict[str, Any], str], bool]
+    persist_sso_token: Callable[[str], None] = lambda sso: None
     add_tokens: Callable[[str, str], Dict[str, Dict[str, Any]]]
     export_cpa: Callable[[str, str, str], Dict[str, Any]]
     cleanup: Callable[[str], None]
@@ -130,6 +131,12 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3):
 
 
 def persist_account_result(result, callbacks, ops):
+    if getattr(result, "sso", ""):
+        try:
+            ops.persist_sso_token(result.sso)
+        except Exception as exc:
+            callbacks.log(f"[!] sso.txt 写入异常（不影响账号保存）: {exc}")
+
     try:
         ops.persist_account_line(result.email, result.password, result.sso)
         saved = True

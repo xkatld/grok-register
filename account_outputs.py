@@ -19,6 +19,77 @@ def append_account_line(path, email, password, sso):
         os.fsync(handle.fileno())
 
 
+def resolve_sso_file():
+    """Return the default path for the standalone SSO token file (sso.txt)."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "sso.txt")
+
+
+def append_sso_token(raw_sso, log_callback=None, path=None):
+    """Append a single SSO token (one per line) to a dedicated sso.txt file.
+
+    - No timestamps.
+    - Deduplicated: the same token will not be written twice.
+    - Always one token per line.
+    - Default location: <package_dir>/sso.txt (next to account_outputs.py).
+    - The file is chmod 600 when possible.
+    - Safe for concurrent writers via filelock when available.
+    """
+    token = _normalize_sso_token(raw_sso)
+    if not token:
+        return False
+
+    if path is None:
+        path = resolve_sso_file()
+
+    lock_path = path + ".lock"
+    try:
+        with open(lock_path, "a", encoding="utf-8"):
+            pass
+        os.chmod(lock_path, 0o600)
+    except Exception:
+        pass
+
+    try:
+        from filelock import FileLock
+        lock_ctx = FileLock(lock_path, timeout=15)
+    except Exception:
+        lock_ctx = None
+
+    def _do_write():
+        existing = set()
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        t = line.strip()
+                        if t:
+                            existing.add(t)
+            except Exception:
+                pass
+
+        if token in existing:
+            return True  # already present, nothing to do
+
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(token + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
+
+        if log_callback:
+            log_callback("[+] SSO token 已写入 sso.txt")
+        return True
+
+    if lock_ctx is not None:
+        with lock_ctx:
+            return _do_write()
+    else:
+        return _do_write()
+
+
 def save_mail_credential(base_dir, email, credential):
     path = os.path.join(base_dir, "mail_credentials.txt")
     with open(path, "a", encoding="utf-8") as handle:
@@ -102,6 +173,11 @@ def retry_pending_file(pending_path, output_path=None, log_callback=None):
                 if key not in existing:
                     append_account_line(target_path, email, password, sso)
                     existing.add(key)
+                    # Also write sso-only file for recovered accounts
+                    try:
+                        append_sso_token(sso)
+                    except Exception:
+                        pass
                 restored += 1
                 logger(f"[+] 已恢复 pending 账号: {email}")
             except Exception as exc:

@@ -25,14 +25,15 @@ def resolve_sso_file():
 
 
 def append_sso_token(raw_sso, log_callback=None, path=None):
-    """Append a single SSO token (one per line) to a dedicated sso.txt file.
+    """Append a single raw SSO token value (one per line) to sso.txt.
 
-    - No timestamps.
-    - Deduplicated: the same token will not be written twice.
-    - Always one token per line.
-    - Default location: <package_dir>/sso.txt (next to account_outputs.py).
-    - The file is chmod 600 when possible.
-    - Safe for concurrent writers via filelock when available.
+    Behavior:
+    - The content written is ONLY the token string (after stripping optional "sso=" prefix).
+    - One token per line, no timestamps, no other fields.
+    - Always appends for every successful registration / recovered account.
+      (No deduplication — each successful obtain is recorded as a separate line.)
+    - Uses filelock for best-effort safety when multiple writers may run.
+    - Best-effort chmod 600 on the file.
     """
     token = _normalize_sso_token(raw_sso)
     if not token:
@@ -56,20 +57,6 @@ def append_sso_token(raw_sso, log_callback=None, path=None):
         lock_ctx = None
 
     def _do_write():
-        existing = set()
-        if os.path.isfile(path):
-            try:
-                with open(path, "r", encoding="utf-8", errors="replace") as f:
-                    for line in f:
-                        t = line.strip()
-                        if t:
-                            existing.add(t)
-            except Exception:
-                pass
-
-        if token in existing:
-            return True  # already present, nothing to do
-
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(token + "\n")
             handle.flush()
@@ -170,14 +157,15 @@ def retry_pending_file(pending_path, output_path=None, log_callback=None):
                 if not email or not sso:
                     raise ValueError("record missing email or sso")
                 key = (email, sso)
+                # Always append the raw token to sso.txt for every recovered record
+                # (one line per processing, even if main line is skipped due to existing).
+                try:
+                    append_sso_token(sso)
+                except Exception:
+                    pass
                 if key not in existing:
                     append_account_line(target_path, email, password, sso)
                     existing.add(key)
-                    # Also write sso-only file for recovered accounts
-                    try:
-                        append_sso_token(sso)
-                    except Exception:
-                        pass
                 restored += 1
                 logger(f"[+] 已恢复 pending 账号: {email}")
             except Exception as exc:

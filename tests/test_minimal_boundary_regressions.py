@@ -38,6 +38,7 @@ def make_ops(enable_nsfw=None, export_cpa=None):
         enable_nsfw=enable_nsfw or (lambda sso: (True, "ok")),
         persist_account_line=lambda email, password, sso: None,
         queue_unsaved_result=lambda payload, error: True,
+        persist_sso_token=lambda sso: None,
         add_tokens=lambda sso, email: {
             "local": {"enabled": False, "ok": None, "error": None},
             "remote": {"enabled": False, "ok": None, "error": None},

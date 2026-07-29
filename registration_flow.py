@@ -23,7 +23,7 @@ class RegistrationOperations:
     enable_nsfw: Callable[[str], Tuple[bool, str]]
     persist_account_line: Callable[[str, str, str], None]
     queue_unsaved_result: Callable[[Dict[str, Any], str], bool]
-    persist_sso_token: Callable[[str], None] = lambda sso: None
+    persist_sso_token: Callable[[str], None]
     add_tokens: Callable[[str, str], Dict[str, Dict[str, Any]]]
     export_cpa: Callable[[str, str, str], Dict[str, Any]]
     cleanup: Callable[[str], None]

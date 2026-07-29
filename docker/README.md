@@ -65,8 +65,9 @@ docker/
 
 ## 浏览器与有头
 
-- 容器已安装 Chromium，并创建了常见路径软链接：
-  - `/usr/bin/chromium`、`chromium-browser`、`google-chrome` 等
+- 容器已安装 **Google Chrome 稳定版**（`google-chrome-stable`），并创建了常见路径软链接：
+  - `/usr/bin/google-chrome`、`google-chrome-stable`、`chromium`、`chromium-browser`
+- 所有路径均指向 Google Chrome 稳定版（实际测试中 Chromium 存在兼容性问题）
 - `cpa_headless` 默认 `false`，注册浏览器与 CPA 授权浏览器都会以有头方式启动
 - 如需强制无头，仅改配置即可，不影响容器本身
 

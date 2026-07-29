@@ -1,5 +1,5 @@
 # Dockerfile for grok-register on linuxserver/webtop:debian-xfce (headed / GUI)
-# Provides a desktop environment with Chromium + the project running inside.
+# Provides a desktop environment with Google Chrome + the project running inside.
 
 FROM lscr.io/linuxserver/webtop:debian-xfce
 
@@ -15,8 +15,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     # DrissionPage / Chromium friendly flags for container
     CHROME_NO_SANDBOX=1
 
-# ---- Base packages + Chinese locale + Python + Chromium ----
-# webtop already ships Chromium (or Chrome). We ensure common paths exist.
+# ---- Base packages + Chinese locale + Python + Google Chrome ----
+# webtop base may include a browser, but we explicitly install Google Chrome stable
+# because Chromium has compatibility issues in real testing (user reported).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         locales \
         ca-certificates \
@@ -44,34 +45,50 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpango-1.0-0 \
         libasound2 \
         libatspi2.0-0 \
-        # ensure chromium is present under common paths that the app probes
-        chromium \
-        chromium-driver \
+        fonts-liberation \
+        libappindicator3-1 \
+        xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate zh_CN locale
 RUN sed -i 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen zh_CN.UTF-8
 
-# Symlink common chromium paths so DrissionPage/browser_runtime can find it
+# ---- Install Google Chrome stable ----
+# Official Google Chrome is required; Chromium has compatibility issues in practice.
+# We add Google's apt repo and install the stable channel.
+RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux-signing-key.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-key.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+       > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/google-chrome-stable /usr/bin/google-chrome \
+    && ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium \
+    && ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium-browser \
+    && echo "Google Chrome installed:" && /usr/bin/google-chrome-stable --version 2>/dev/null || true
+
+# ---- Symlink common paths for DrissionPage/browser_runtime discovery ----
+# Ensure all probed paths resolve to Google Chrome.
 RUN set -eux; \
     for p in \
         /usr/bin/chromium \
         /usr/bin/chromium-browser \
         /usr/bin/google-chrome \
         /usr/bin/google-chrome-stable; do \
-        if [ ! -e "$p" ]; then \
-            if [ -x /usr/bin/chromium ]; then ln -sf /usr/bin/chromium "$p"; \
-            elif [ -x /usr/bin/chromium-browser ]; then ln -sf /usr/bin/chromium-browser "$p"; \
-            fi; \
+        if [ ! -e "$p" ] || [ ! -x "$p" ]; then \
+            if [ -x /usr/bin/google-chrome-stable ]; then ln -sf /usr/bin/google-chrome-stable "$p"; fi; \
         fi; \
     done; \
-    # Also expose a stable name if chromium binary is chromium-browser
-    if [ -x /usr/bin/chromium-browser ] && [ ! -x /usr/bin/chromium ]; then \
-        ln -sf /usr/bin/chromium-browser /usr/bin/chromium; \
+    # Force canonical names to Google Chrome stable when present
+    if [ -x /usr/bin/google-chrome-stable ]; then \
+        ln -sf /usr/bin/google-chrome-stable /usr/bin/google-chrome 2>/dev/null || true; \
+        ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium 2>/dev/null || true; \
+        ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium-browser 2>/dev/null || true; \
     fi; \
-    # Print what we have for debugging
-    ls -l /usr/bin/chromium* /usr/bin/google-chrome* 2>/dev/null || true
+    # Final debug listing
+    ls -l /usr/bin/chromium* /usr/bin/google-chrome* 2>/dev/null || true; \
+    /usr/bin/google-chrome --version 2>/dev/null || true
 
 # ---- App setup ----
 # Workdir for the project (source lives here in the image)

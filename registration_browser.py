@@ -902,7 +902,7 @@ if (nodes.length && typeof nodes[0].click === 'function') nodes[0].click();
                 )
         except Exception:
             pass
-        sleep_with_cancel(1, cancel_callback)
+        sleep_with_cancel(0.3, cancel_callback)
 
     raise Exception("Turnstile 获取 token 失败")
 
@@ -936,6 +936,10 @@ def fill_profile_and_submit(timeout=120, log_callback=None, cancel_callback=None
     form_filled_once = False
     wait_cf_since = None
     last_cf_retry_at = 0.0
+    last_logged_cf_len = None
+    last_cf_log_time = 0.0
+    last_logged_submit_cf_len = None
+    last_submit_cf_log_time = 0.0
 
     while time.time() < deadline:
         raise_if_cancelled(cancel_callback)
@@ -1018,21 +1022,21 @@ return 'filled-no-submit';
 
             if isinstance(filled, str) and filled.startswith("wait-cloudflare"):
                 form_filled_once = True
-                if log_callback:
-                    token_len = filled.split(":", 1)[1] if ":" in filled else "0"
+                token_len = filled.split(":", 1)[1] if ":" in filled else "0"
+                # 只在 token 长度变化或每 3s 打印一次，避免狂刷
+                now_log = time.time()
+                should_log = (token_len != last_logged_cf_len) or (now_log - last_cf_log_time >= 3.0)
+                if log_callback and should_log:
                     log_callback(f"[*] 资料已填写，等待 Cloudflare 人机验证通过... 当前token长度={token_len}")
-                if token_len == "0":
-                    pause_seconds = random.uniform(1, 3)
-                    if log_callback:
-                        log_callback(f"[*] Cloudflare token 为空，暂停 {pause_seconds:.1f}s 后继续检测")
-                    sleep_with_cancel(pause_seconds, cancel_callback)
+                    last_logged_cf_len = token_len
+                    last_cf_log_time = now_log
                 now = time.time()
                 if wait_cf_since is None:
                     wait_cf_since = now
-                # 卡住后自动二次复用 Turnstile 组件
-                if now - wait_cf_since >= 12 and now - last_cf_retry_at >= 8:
+                # 立即尝试二次复用 Turnstile（直接手动触发更快）
+                if now - last_cf_retry_at >= 0.5:
                     if log_callback:
-                        log_callback("[*] Cloudflare 验证卡住，开始二次复用 Turnstile...")
+                        log_callback("[*] 检测到 Cloudflare，立即尝试手动复用 Turnstile...")
                     try:
                         token = getTurnstileToken(log_callback=log_callback, cancel_callback=cancel_callback)
                         if token:
@@ -1055,8 +1059,8 @@ return String(cfInput.value || '').trim().length;
                     except Exception as cf_exc:
                         if log_callback:
                             log_callback(f"[Debug] Turnstile 二次复用失败: {cf_exc}")
-                    last_cf_retry_at = now
-                sleep_with_cancel(0.8, cancel_callback)
+                    last_cf_retry_at = time.time()
+                sleep_with_cancel(0.4, cancel_callback)
                 continue
 
             if filled in ("ready-to-submit", "filled-no-submit"):
@@ -1115,15 +1119,21 @@ return 'submitted';
         )
 
         if isinstance(submit_state, str) and submit_state.startswith("wait-cloudflare"):
-            if log_callback:
-                token_len = submit_state.split(":", 1)[1] if ":" in submit_state else "0"
+            token_len = submit_state.split(":", 1)[1] if ":" in submit_state else "0"
+            # 只在 token 长度变化或每 3s 打印一次
+            now_log = time.time()
+            should_log = (token_len != last_logged_submit_cf_len) or (now_log - last_submit_cf_log_time >= 3.0)
+            if log_callback and should_log:
                 log_callback(f"[*] 等待 Cloudflare 人机验证通过后再提交... 当前token长度={token_len}")
+                last_logged_submit_cf_len = token_len
+                last_submit_cf_log_time = now_log
             now = time.time()
             if wait_cf_since is None:
                 wait_cf_since = now
-            if now - wait_cf_since >= 12 and now - last_cf_retry_at >= 8:
+            # 立即尝试二次复用（不再等待12s）
+            if now - last_cf_retry_at >= 0.5:
                 if log_callback:
-                    log_callback("[*] 提交前仍卡住，自动再次复用 Turnstile...")
+                    log_callback("[*] 提交前检测到 CF，立即手动复用 Turnstile...")
                 try:
                     token = getTurnstileToken(log_callback=log_callback, cancel_callback=cancel_callback)
                     if token:
@@ -1146,8 +1156,8 @@ return String(cfInput.value || '').trim().length;
                 except Exception as cf_exc:
                     if log_callback:
                         log_callback(f"[Debug] Turnstile 二次复用失败: {cf_exc}")
-                last_cf_retry_at = now
-            sleep_with_cancel(0.8, cancel_callback)
+                last_cf_retry_at = time.time()
+            sleep_with_cancel(0.4, cancel_callback)
             continue
 
         if submit_state == "submitted":
@@ -1253,9 +1263,10 @@ return 'final-page-clicked-submit';
                 if log_callback and isinstance(retried, str) and retried.startswith("final-page-wait-cf"):
                     token_len = retried.split(":", 1)[1] if ":" in retried else "0"
                     log_callback(f"[Debug] 最终页状态: final-page-wait-cf, token长度={token_len}")
-                    if now - last_cf_retry_at >= 10:
+                    # 立即尝试二次复用
+                    if now - last_cf_retry_at >= 0.5:
                         if log_callback:
-                            log_callback("[*] 最终页 Cloudflare 卡住，自动二次复用 Turnstile...")
+                            log_callback("[*] 最终页检测到 CF，立即手动复用 Turnstile...")
                         try:
                             token = getTurnstileToken(log_callback=log_callback, cancel_callback=cancel_callback)
                             if token:
@@ -1278,7 +1289,7 @@ return String(cfInput.value || '').trim().length;
                         except Exception as cf_exc:
                             if log_callback:
                                 log_callback(f"[Debug] 最终页 Turnstile 二次复用失败: {cf_exc}")
-                        last_cf_retry_at = now
+                        last_cf_retry_at = time.time()
 
             cookies = page.cookies(all_domains=True, all_info=True) or []
             for item in cookies:

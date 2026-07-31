@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -41,6 +42,7 @@ class RegistrationResult:
     profile: Dict[str, Any] = field(default_factory=dict)
     error: str = ""
     retryable: bool = False
+    step_times: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -79,20 +81,29 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3, fas
     dev_token = ""
     code = ""
     mail_ok = False
+    step_times = {}
+    t_start = time.perf_counter()
     for mail_try in range(1, max_mail_retry + 1):
         if callbacks.cancelled():
             raise ops.cancelled_exception()
         callbacks.log(f"[*] 1. 打开注册页 (尝试 {mail_try}/{max_mail_retry})")
+        t0 = time.perf_counter()
         ops.open_signup_page()
+        step_times["open_page_ms"] = int((time.perf_counter() - t0) * 1000)
+
         callbacks.log("[*] 2. 创建邮箱并提交")
+        t0 = time.perf_counter()
         email, dev_token = ops.fill_email_and_submit()
+        step_times["submit_email_ms"] = int((time.perf_counter() - t0) * 1000)
         callbacks.log(f"[*] 邮箱: {email}")
         callbacks.log(f"[Debug] 邮箱credential(jwt): {dev_token}")
         if not ops.save_mail_credential(email, dev_token):
             callbacks.log("[!] 邮箱凭据保存失败，注册继续，但已明确记录该异常")
         callbacks.log("[*] 3. 拉取验证码")
         try:
+            t0 = time.perf_counter()
             code = ops.fill_code_and_submit(email, dev_token)
+            step_times["fetch_code_ms"] = int((time.perf_counter() - t0) * 1000)
             mail_ok = True
             break
         except Exception as exc:
@@ -107,28 +118,41 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3, fas
         raise RuntimeError("验证码阶段失败，已达到最大重试次数")
     callbacks.log(f"[*] 验证码: {code}")
     callbacks.log("[*] 4. 填写资料")
+    t0 = time.perf_counter()
     profile = ops.fill_profile_and_submit()
+    step_times["fill_profile_ms"] = int((time.perf_counter() - t0) * 1000)
     callbacks.log(f"[*] 资料已填: {profile.get('given_name')} {profile.get('family_name')}")
     callbacks.log("[*] 5. 等待 sso cookie")
+    t0 = time.perf_counter()
     sso = ops.wait_for_sso_cookie()
+    step_times["wait_sso_ms"] = int((time.perf_counter() - t0) * 1000)
     if fast_sso_mode:
         callbacks.log("[+] 激进极速模式开启：SSO 捕获成功，跳过 NSFW 与后续非核心流程")
     elif enable_nsfw:
         callbacks.log("[*] 6. 开启 NSFW")
+        t0 = time.perf_counter()
         try:
             nsfw_ok, nsfw_msg = ops.enable_nsfw(sso)
+            step_times["enable_nsfw_ms"] = int((time.perf_counter() - t0) * 1000)
             if nsfw_ok:
                 callbacks.log(f"[+] NSFW 开启成功: {nsfw_msg}")
             else:
                 callbacks.log(f"[!] NSFW 未开启，继续保存账号: {nsfw_msg}")
         except Exception as exc:
             callbacks.log(f"[!] NSFW 开启异常，继续保存账号: {exc}")
+            step_times["enable_nsfw_ms"] = int((time.perf_counter() - t0) * 1000)
+    total_ms = int((time.perf_counter() - t_start) * 1000)
+    step_times["total_ms"] = total_ms
+    callbacks.log(
+        f"[耗时统计] 总计:{total_ms}ms | 打开页:{step_times.get('open_page_ms', 0)}ms | 提交邮箱:{step_times.get('submit_email_ms', 0)}ms | 验证码:{step_times.get('fetch_code_ms', 0)}ms | 填资料:{step_times.get('fill_profile_ms', 0)}ms | 等SSO:{step_times.get('wait_sso_ms', 0)}ms"
+    )
     return RegistrationResult(
         ok=True,
         email=email,
         password=str(profile.get("password") or ""),
         sso=sso,
         profile=profile,
+        step_times=step_times,
     )
 
 
@@ -368,6 +392,19 @@ def run_batch(count, callbacks, observer, ops, enable_nsfw=True, cleanup_interva
             if not _prepare_next_account(result, settings, callbacks, ops):
                 break
     finally:
+        if result.results:
+            valid_times = [r["registration"].step_times for r in result.results if r.get("registration") and getattr(r["registration"], "step_times", None)]
+            if valid_times:
+                count_n = len(valid_times)
+                avg_total = int(sum(t.get("total_ms", 0) for t in valid_times) / count_n)
+                avg_open = int(sum(t.get("open_page_ms", 0) for t in valid_times) / count_n)
+                avg_email = int(sum(t.get("submit_email_ms", 0) for t in valid_times) / count_n)
+                avg_code = int(sum(t.get("fetch_code_ms", 0) for t in valid_times) / count_n)
+                avg_profile = int(sum(t.get("fill_profile_ms", 0) for t in valid_times) / count_n)
+                avg_sso = int(sum(t.get("wait_sso_ms", 0) for t in valid_times) / count_n)
+                callbacks.log(
+                    f"[批处理统计报告] 样本:{count_n}个账号 | 平均总耗时:{avg_total}ms | 打开页:{avg_open}ms | 提交邮箱:{avg_email}ms | 验证码:{avg_code}ms | 填资料:{avg_profile}ms | 等SSO:{avg_sso}ms"
+                )
         _run_cleanup_safely(ops, callbacks, "任务结束")
     return result
 

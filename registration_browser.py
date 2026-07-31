@@ -210,17 +210,21 @@ def start_browser(log_callback=None, use_proxy=True):
         try:
             browser_proxy, bridge = prepare_browser_proxy(use_proxy=use_proxy, log_callback=log_callback)
             if HAVE_CAMOUFOX:
-                if log_callback:
-                    log_callback("[*] 启用 Camoufox C++ 顶级指纹伪装引擎")
-                kwargs = {"headless": False}
-                if browser_proxy:
-                    kwargs["proxy"] = {"server": browser_proxy}
-                cfx = Camoufox(**kwargs).start()
-                browser = cfx
-                browser_proxy_bridge = bridge
-                browser_started_with_proxy = bool(browser_proxy)
-                page = cfx.new_page()
-                return browser, page
+                try:
+                    if log_callback:
+                        log_callback("[*] 尝试启动 Camoufox C++ 指纹伪装引擎")
+                    kwargs = {"headless": False}
+                    if browser_proxy:
+                        kwargs["proxy"] = {"server": browser_proxy}
+                    cfx = Camoufox(**kwargs).start()
+                    browser = cfx
+                    browser_proxy_bridge = bridge
+                    browser_started_with_proxy = bool(browser_proxy)
+                    page = cfx.new_page()
+                    return browser, page
+                except Exception as cfx_err:
+                    if log_callback:
+                        log_callback(f"[提示] Camoufox 引擎启动跳过，请在终端运行 camoufox fetch 完成组件拉取")
             browser = Chromium(create_browser_options(browser_proxy=browser_proxy))
             browser_proxy_bridge = bridge
             browser_started_with_proxy = bool(browser_proxy)

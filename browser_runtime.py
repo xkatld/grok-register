@@ -385,8 +385,6 @@ def create_browser_options(browser_proxy="", extension_path=None):
         "/usr/bin/google-chrome",
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
         r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium",
     ):
         if os.path.isfile(candidate):
             try:

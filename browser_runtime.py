@@ -54,12 +54,13 @@ def _parse_proxy_list(value):
     if not value:
         return []
     text = str(value).strip()
-    # 支持换行、逗号、分号分隔
-    parts = re.split(r"[\n,;]+", text)
+    lines = text.splitlines()
     cleaned = []
-    for p in parts:
-        p = p.strip()
+    for line in lines:
+        p = line.strip()
         if p:
+            if "://" not in p:
+                p = "socks5://" + p
             cleaned.append(p)
     return cleaned
 

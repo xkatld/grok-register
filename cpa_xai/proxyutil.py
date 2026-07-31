@@ -1,5 +1,3 @@
-"""解析认证代理并为 CPA 浏览器提供本地代理桥。"""
-
 import base64
 import os
 import select
@@ -9,18 +7,14 @@ import ssl
 import threading
 import urllib.parse
 
-
 _tls = threading.local()
-
 
 def set_runtime_proxy(proxy):
     value = str(proxy or "").strip()
     _tls.proxy = value or None
 
-
 def get_runtime_proxy():
     return getattr(_tls, "proxy", None)
-
 
 def resolve_proxy(explicit=None):
     for candidate in (
@@ -35,18 +29,16 @@ def resolve_proxy(explicit=None):
             return candidate
     return ""
 
-
 def _parse_proxy(proxy):
     raw = str(proxy or "").strip()
     if not raw:
         return None
     if "://" not in raw:
-        raw = "http://" + raw
+        raw = "socks5://" + raw
     try:
         return urllib.parse.urlsplit(raw)
     except Exception:
         return None
-
 
 def _safe_port(parsed):
     try:
@@ -54,11 +46,9 @@ def _safe_port(parsed):
     except Exception:
         return None
 
-
 def _has_proxy_auth(proxy):
     parsed = _parse_proxy(proxy)
-    return bool(parsed and parsed.hostname and (parsed.username is not None or parsed.password is not None))
-
+    return bool(parsed and parsed.hostname)
 
 def _recv_until_headers(sock, timeout=20, limit=65536):
     sock.settimeout(timeout)
@@ -69,7 +59,6 @@ def _recv_until_headers(sock, timeout=20, limit=65536):
             break
         data += chunk
     return data
-
 
 def _relay(left, right, timeout=90):
     left.settimeout(timeout)
@@ -86,11 +75,9 @@ def _relay(left, right, timeout=90):
             peer = right if sock is left else left
             peer.sendall(data)
 
-
 class _BridgeServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
-
 
 class _BridgeHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -103,22 +90,26 @@ class _BridgeHandler(socketserver.BaseRequestHandler):
             first_line = initial.split(b"\r\n", 1)[0].decode("latin1", "ignore")
             if first_line.upper().startswith("CONNECT "):
                 target = first_line.split()[1]
-                upstream = bridge.open_upstream()
-                req = ["CONNECT %s HTTP/1.1" % target, "Host: %s" % target]
-                if bridge.auth_header:
-                    req.append("Proxy-Authorization: Basic %s" % bridge.auth_header)
-                upstream.sendall(("\r\n".join(req) + "\r\n\r\n").encode("latin1"))
-                response = _recv_until_headers(upstream, timeout=bridge.timeout)
-                if response:
-                    self.request.sendall(response)
-                status = response.split(b"\r\n", 1)[0]
-                if b" 200 " not in status:
-                    return
+                if ":" in target:
+                    target_host, target_port_str = target.rsplit(":", 1)
+                    target_port = int(target_port_str)
+                else:
+                    target_host = target
+                    target_port = 80
+                upstream = bridge.open_upstream(target_host, target_port)
+                self.request.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                 _relay(self.request, upstream, timeout=bridge.relay_timeout)
                 return
-            upstream = bridge.open_upstream()
-            upstream.sendall(bridge.inject_proxy_auth(initial))
-            _relay(self.request, upstream, timeout=bridge.relay_timeout)
+            else:
+                lines = initial.split(b"\r\n")
+                first_parts = lines[0].decode("latin1", "ignore").split()
+                if len(first_parts) >= 2:
+                    url_parsed = urllib.parse.urlsplit(first_parts[1])
+                    target_host = url_parsed.hostname or "127.0.0.1"
+                    target_port = url_parsed.port or 80
+                    upstream = bridge.open_upstream(target_host, target_port)
+                    upstream.sendall(initial)
+                    _relay(self.request, upstream, timeout=bridge.relay_timeout)
         except Exception:
             return
         finally:
@@ -128,44 +119,65 @@ class _BridgeHandler(socketserver.BaseRequestHandler):
                 except Exception:
                     pass
 
-
 class LocalAuthProxyBridge(object):
     def __init__(self, proxy_url):
         parsed = _parse_proxy(proxy_url)
         if not parsed or not parsed.hostname:
             raise ValueError("proxy URL is invalid")
-        scheme = (parsed.scheme or "http").lower()
-        if scheme not in ("http", "https"):
-            raise ValueError("authenticated Chromium proxy bridge only supports http/https upstream proxies")
+        scheme = (parsed.scheme or "socks5").lower()
         self.upstream_scheme = scheme
         self.upstream_host = parsed.hostname
-        self.upstream_port = _safe_port(parsed) or (443 if scheme == "https" else 80)
-        username = urllib.parse.unquote(parsed.username or "")
-        password = urllib.parse.unquote(parsed.password or "")
-        raw_auth = ("%s:%s" % (username, password)).encode("utf-8")
-        self.auth_header = base64.b64encode(raw_auth).decode("ascii") if (username or password) else ""
+        self.upstream_port = _safe_port(parsed) or 1080
+        self.username = urllib.parse.unquote(parsed.username or "")
+        self.password = urllib.parse.unquote(parsed.password or "")
+        raw_auth = ("%s:%s" % (self.username, self.password)).encode("utf-8")
+        self.auth_header = base64.b64encode(raw_auth).decode("ascii") if (self.username or self.password) else ""
         self.timeout = 20
         self.relay_timeout = 90
         self.server = None
         self.thread = None
         self.local_proxy = ""
 
-    def open_upstream(self):
-        sock = socket.create_connection((self.upstream_host, self.upstream_port), timeout=self.timeout)
-        if self.upstream_scheme == "https":
-            context = ssl.create_default_context()
-            sock = context.wrap_socket(sock, server_hostname=self.upstream_host)
-        sock.settimeout(self.timeout)
-        return sock
-
-    def inject_proxy_auth(self, data):
-        if not self.auth_header or b"\r\n\r\n" not in data:
-            return data
-        if b"\r\nproxy-authorization:" in data.lower():
-            return data
-        head, body = data.split(b"\r\n\r\n", 1)
-        auth_line = ("Proxy-Authorization: Basic %s" % self.auth_header).encode("latin1")
-        return head + b"\r\n" + auth_line + b"\r\n\r\n" + body
+    def open_upstream(self, target_host, target_port):
+        if self.upstream_scheme in ("socks5", "socks5h"):
+            sock = socket.create_connection((self.upstream_host, self.upstream_port), timeout=self.timeout)
+            if self.username or self.password:
+                sock.sendall(b"\x05\x02\x00\x02")
+            else:
+                sock.sendall(b"\x05\x01\x00")
+            resp = sock.recv(2)
+            if len(resp) < 2 or resp[0] != 5:
+                sock.close()
+                raise ValueError("socks5 handshake failed")
+            method = resp[1]
+            if method == 2:
+                u_bytes = self.username.encode("utf-8")
+                p_bytes = self.password.encode("utf-8")
+                auth_req = b"\x01" + bytes([len(u_bytes)]) + u_bytes + bytes([len(p_bytes)]) + p_bytes
+                sock.sendall(auth_req)
+                auth_resp = sock.recv(2)
+                if len(auth_resp) < 2 or auth_resp[1] != 0:
+                    sock.close()
+                    raise ValueError("socks5 auth failed")
+            elif method != 0:
+                sock.close()
+                raise ValueError("socks5 auth method not supported")
+            
+            host_bytes = target_host.encode("utf-8")
+            req = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + target_port.to_bytes(2, "big")
+            sock.sendall(req)
+            conn_resp = sock.recv(10)
+            if len(conn_resp) < 4 or conn_resp[1] != 0:
+                sock.close()
+                raise ValueError("socks5 connect failed")
+            return sock
+        else:
+            sock = socket.create_connection((self.upstream_host, self.upstream_port), timeout=self.timeout)
+            if self.upstream_scheme == "https":
+                context = ssl.create_default_context()
+                sock = context.wrap_socket(sock, server_hostname=self.upstream_host)
+            sock.settimeout(self.timeout)
+            return sock
 
     def start(self):
         self.server = _BridgeServer(("127.0.0.1", 0), _BridgeHandler)
@@ -187,36 +199,29 @@ class LocalAuthProxyBridge(object):
         self.thread = None
         self.local_proxy = ""
 
-
 def proxy_for_chromium(proxy):
     raw = str(proxy or "").strip()
     if not raw:
         return ""
-    if _has_proxy_auth(raw):
-        raise ValueError("authenticated proxy requires prepare_chromium_proxy()")
     parsed = _parse_proxy(raw)
     if not parsed or not parsed.hostname:
         return ""
     host = parsed.hostname
     if ":" in host and not host.startswith("["):
         host = "[%s]" % host
-    port = _safe_port(parsed) or (443 if (parsed.scheme or "http").lower() == "https" else 80)
-    scheme = parsed.scheme or "http"
+    port = _safe_port(parsed) or 1080
+    scheme = parsed.scheme or "socks5"
     return "%s://%s:%s" % (scheme, host, port)
-
 
 def prepare_chromium_proxy(proxy, log=None):
     logger = log or (lambda message: None)
     raw = str(proxy or "").strip()
     if not raw:
         return "", None
-    if _has_proxy_auth(raw):
-        bridge = LocalAuthProxyBridge(raw)
-        local_proxy = bridge.start()
-        logger("started authenticated proxy bridge: %s" % local_proxy)
-        return local_proxy, bridge
-    return proxy_for_chromium(raw), None
-
+    bridge = LocalAuthProxyBridge(raw)
+    local_proxy = bridge.start()
+    logger("started authenticated proxy bridge: %s" % local_proxy)
+    return local_proxy, bridge
 
 def proxy_log_label(proxy):
     raw = str(proxy or "").strip()
@@ -229,4 +234,5 @@ def proxy_log_label(proxy):
     port = _safe_port(parsed)
     auth = "user:***@" if parsed.username else ""
     suffix = ":%s" % port if port else ""
-    return "%s://%s%s%s" % (parsed.scheme or "http", auth, host, suffix)
+    return "%s://%s%s%s" % (parsed.scheme or "socks5", auth, host, suffix)
+

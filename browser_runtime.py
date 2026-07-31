@@ -330,37 +330,12 @@ def page_has_proxy_error(page_obj):
 
 
 def prepare_browser_proxy(use_proxy=True, log_callback=None):
-    """根据当前 active/config proxy 准备浏览器代理参数。
-    - http/https 带认证的使用本地桥
-    - socks* 带认证：直接把完整带认证的 URL 传给 Chromium（现代 Chrome 支持 socks5://user:pass@host:port）
-    - 无认证或其它情况正常处理
-    """
     proxy = get_configured_proxy()
     if not use_proxy or not proxy:
         return "", None
-    parsed = _parse_proxy_url(proxy)
-    scheme = (parsed.scheme or "http").lower() if parsed else "http"
-
-    # 只对 http/https 认证代理走本地桥（去掉 auth 给 Chromium 连本地桥）
-    if _proxy_has_auth(proxy) and scheme in ("http", "https"):
-        stripped = _strip_proxy_auth(proxy)
-        if log_callback:
-            log_callback("[!] 检测到 HTTP 认证代理，使用本地代理桥（已剥离凭据）")
-        logger = None
-        if log_callback:
-            logger = lambda message: log_callback("[*] 已为 Chromium启动本地认证代理桥: %s" % message.split(": ", 1)[-1]) if "started authenticated proxy bridge" in message else log_callback(message)
-        return prepare_chromium_proxy(stripped or proxy, log=logger)
-
-    # SOCKS（无论是否带 auth）或其他无认证：直接把原串（含 auth）交给 Chromium
-    if scheme.startswith("socks"):
-        if log_callback:
-            log_callback(f"[*] 使用 SOCKS 代理: {_proxy_label(proxy)}")
-        return proxy, None
-
-    # 普通 http/https 无认证，或其它
     logger = None
     if log_callback:
-        logger = lambda message: log_callback("[*] 已为 Chromium启动本地认证代理桥: %s" % message.split(": ", 1)[-1]) if "started authenticated proxy bridge" in message else log_callback(message)
+        logger = lambda message: log_callback("[*] 已为 Chromium 启动本地代理桥: %s" % message.split(": ", 1)[-1]) if "started authenticated proxy bridge" in message else log_callback(message)
     return prepare_chromium_proxy(proxy, log=logger)
 
 

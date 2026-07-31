@@ -457,7 +457,7 @@ def fill_email_and_submit(timeout=45, log_callback=None, cancel_callback=None):
     while time.time() < deadline:
         raise_if_cancelled(cancel_callback)
         filled = page.run_js(
-            """
+            r"""
 const email = arguments[0];
 function isVisible(node) {
     if (!node) return false;

@@ -424,7 +424,7 @@ def open_signup_page(log_callback=None, cancel_callback=None):
         restart_browser(log_callback=log_callback, use_proxy=False)
         _open_with_current_browser()
 
-    sleep_with_cancel(2, cancel_callback)
+    sleep_with_cancel(0.3, cancel_callback)
     if log_callback:
         log_callback(f"[*] 当前URL: {page.url}")
     click_email_signup_button(
@@ -1348,7 +1348,7 @@ return String(cfInput.value || '').trim().length;
                     last_wait_exception_message = message
                     last_wait_exception_at = now
 
-        sleep_with_cancel(1, cancel_callback)
+        sleep_with_cancel(0.2, cancel_callback)
 
     raise Exception(
         f"等待超时：未获取到 sso cookie。已看到 cookies: {sorted(last_seen_names)}"

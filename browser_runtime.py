@@ -372,6 +372,8 @@ def create_browser_options(browser_proxy="", extension_path=None):
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-blink-features=AutomationControlled",
+        "--remote-allow-origins=*",
+        "--password-store=basic",
     ):
         try:
             options.set_argument(flag)

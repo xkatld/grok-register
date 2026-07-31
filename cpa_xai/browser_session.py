@@ -75,10 +75,15 @@ def create_standalone_page(proxy: Optional[str] = None, headless: bool = False, 
         except Exception:
             pass
 
-    try:
-        options.set_argument("--disable-blink-features=AutomationControlled")
-    except Exception:
-        pass
+    for flag in (
+        "--disable-blink-features=AutomationControlled",
+        "--remote-allow-origins=*",
+        "--password-store=basic",
+    ):
+        try:
+            options.set_argument(flag)
+        except Exception:
+            pass
 
     for candidate in (
         "/usr/bin/google-chrome-stable",

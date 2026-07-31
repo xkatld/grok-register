@@ -27,7 +27,9 @@ python grok_register_ttk.py
 - **持久化**：
   - 桌面/用户配置：宿主机 `./docker/webtop-config`
   - 项目数据与输出：宿主机 `./docker/data`（accounts、pending、cpa_auths 等）
-- **代理**：在 `config.json` 的 `proxy` 字段配置，支持多行/逗号/分号分隔
+- **代理配置**：在 `config.json` 的 `proxy` 字段配置，统一支持多行 `socks5://user:pass@host:port` 格式
+- **浏览器组件**：优先使用官方 Google Chrome，同时支持 Playwright 自动化浏览器组件引擎
+- **架构兼容**：支持 x86 与 ARM64 架构，ARM64 环境推荐安装 Playwright 组件库运行
 
 ## 目录
 

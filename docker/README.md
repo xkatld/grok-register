@@ -73,7 +73,7 @@ docker/
 
 ## 代理与网络
 
-- 代理在 `config.json` 中配置（支持多行/逗号/分号分隔）
+- 代理在 `config.json` 中配置，统一按多行 `socks5://user:pass@host:port` 格式填写
 - 如需让容器走宿主机代理，可在容器终端内设置：
   ```bash
   export http_proxy=http://host.docker.internal:7890

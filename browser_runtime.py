@@ -380,13 +380,13 @@ def create_browser_options(browser_proxy="", extension_path=None):
         except Exception:
             pass
 
-    # Explicitly pick a Chromium/Chrome binary if we can find one in common paths.
-    # This helps in minimal containers where DrissionPage's auto-detection may fail.
     for candidate in (
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/google-chrome",
         "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
     ):
         if os.path.isfile(candidate):
             try:

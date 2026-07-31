@@ -76,10 +76,12 @@ def create_standalone_page(proxy: Optional[str] = None, headless: bool = False, 
             pass
 
     for candidate in (
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/google-chrome",
         "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
     ):
         if os.path.isfile(candidate):
             try:

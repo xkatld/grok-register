@@ -647,7 +647,7 @@ def retry_pending_file(pending_path, output_path=None, log_callback=None):
 
 
 def run_registration_common(count, log_callback, cancel_callback, accounts_output_file, observer):
-    from registration_flow import RegistrationCallbacks, RegistrationOperations, run_batch
+    from registration_flow import RegistrationCallbacks, RegistrationOperations, RegistrationSettings, run_batch
     callbacks = RegistrationCallbacks(log=log_callback, cancelled=cancel_callback)
     operations = RegistrationOperations(
         start_browser=lambda: start_browser(log_callback=log_callback),
@@ -782,12 +782,11 @@ class GrokRegisterGUI:
         self.fast_sso_check = tk_checkbutton(config_frame, text="激进极速模式(仅抓取SSO)", variable=self.fast_sso_var)
         add_field(self.fast_sso_check, 1, 2, sticky=tk.W)
 
-        add_label(1, 2, "代理（支持多行/逗号/分号）：")
-        # 改为多行 Text，支持直接粘贴整块代理列表
+        add_label(2, 0, "代理列表:")
         proxy_text_frame = tk.Frame(config_frame, bg=UI_PANEL_BG)
         self.proxy_text = tk.Text(
             proxy_text_frame,
-            height=4,
+            height=3,
             width=34,
             bg=UI_ENTRY_BG,
             fg=UI_FG,
@@ -799,38 +798,35 @@ class GrokRegisterGUI:
             wrap="none",
         )
         self.proxy_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
-        # 初始化填充
         init_proxy = str(config.get("proxy", "") or "")
         if init_proxy:
             self.proxy_text.insert("1.0", init_proxy)
-        add_field(proxy_text_frame, 1, 3)
+        add_field(proxy_text_frame, 2, 1)
 
-        add_label(1, 4, "轮换:")
+        add_label(2, 2, "轮换:")
         self.proxy_rotation_var = tk.StringVar(value=str(config.get("proxy_rotation", "round_robin")))
         self.proxy_rotation_combo = tk_option_menu(
             config_frame, self.proxy_rotation_var, ["round_robin", "random"], width=10
         )
-        add_field(self.proxy_rotation_combo, 1, 5, sticky=tk.W)
+        add_field(self.proxy_rotation_combo, 2, 3, sticky=tk.W)
 
-        # 仅使用测试通过的代理
-        add_label(2, 2, "")
         self.proxy_only_tested_var = tk.BooleanVar(value=bool(config.get("proxy_only_tested", False)))
         self.proxy_only_tested_check = tk_checkbutton(
-            config_frame, text="仅使用测试通过的代理（失败自动跳过坏代理）", variable=self.proxy_only_tested_var
+            config_frame, text="仅使用测试通过代理", variable=self.proxy_only_tested_var
         )
-        add_field(self.proxy_only_tested_check, 2, 3, columnspan=3, sticky=tk.W)
+        add_field(self.proxy_only_tested_check, 2, 4, sticky=tk.W)
 
-        add_label(2, 0, "DuckMail API Key:")
+        add_label(3, 0, "DuckMail API Key:")
         self.api_key_var = tk.StringVar(value=config.get("duckmail_api_key", ""))
         self.api_key_entry = tk_entry(config_frame, textvariable=self.api_key_var, width=34)
-        add_field(self.api_key_entry, 2, 1)
+        add_field(self.api_key_entry, 3, 1)
 
-        add_label(2, 2, "Cloudflare 鉴权模式:")
+        add_label(3, 2, "Cloudflare 鉴权模式:")
         self.cloudflare_auth_mode_var = tk.StringVar(value=config.get("cloudflare_auth_mode", "none"))
         self.cloudflare_auth_mode_combo = tk_option_menu(
             config_frame, self.cloudflare_auth_mode_var, ["query-key", "bearer", "x-api-key", "x-admin-auth", "none"], width=12
         )
-        add_field(self.cloudflare_auth_mode_combo, 2, 3, sticky=tk.W)
+        add_field(self.cloudflare_auth_mode_combo, 3, 3, sticky=tk.W)
 
         add_label(3, 0, "Cloudflare API Base:")
         self.cloudflare_api_base_var = tk.StringVar(value=config.get("cloudflare_api_base", ""))

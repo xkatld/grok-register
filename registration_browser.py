@@ -839,7 +839,7 @@ def getTurnstileToken(log_callback=None, cancel_callback=None):
     except Exception:
         pass
 
-    for _ in range(0, 20):
+    for _ in range(0, 25):
         raise_if_cancelled(cancel_callback)
         try:
             token = page.run_js(
@@ -859,6 +859,25 @@ try {
                 if log_callback:
                     log_callback(f"[*] Turnstile 已通过，token长度={len(token)}")
                 return token
+
+            page.run_js(
+                """
+try {
+  const iframe = document.querySelector('iframe[src*="turnstile"], div.cf-turnstile');
+  if (iframe) {
+    const rect = iframe.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const opts = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, screenX: cx + 100, screenY: cy + 100 };
+      iframe.dispatchEvent(new MouseEvent('mousedown', opts));
+      iframe.dispatchEvent(new MouseEvent('mouseup', opts));
+      iframe.dispatchEvent(new MouseEvent('click', opts));
+    }
+  }
+} catch(e) {}
+                """
+            )
 
             challenge_input = page.ele("@name=cf-turnstile-response")
             if challenge_input:
@@ -889,17 +908,6 @@ Object.defineProperty(MouseEvent.prototype, 'screenY', { value: sy });
                             btn.click()
                     except Exception:
                         pass
-            else:
-                # 兜底：尝试触发页面上可见的 Turnstile 容器
-                page.run_js(
-                    """
-const nodes = Array.from(document.querySelectorAll('div,span,iframe')).filter((n) => {
-  const txt = (n.className || '') + ' ' + (n.id || '') + ' ' + (n.getAttribute?.('src') || '');
-  return String(txt).toLowerCase().includes('turnstile');
-});
-if (nodes.length && typeof nodes[0].click === 'function') nodes[0].click();
-                    """
-                )
         except Exception:
             pass
         sleep_with_cancel(0.3, cancel_callback)

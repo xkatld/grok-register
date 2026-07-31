@@ -1,4 +1,3 @@
-"""管理主注册浏览器生命周期并实现注册页面自动化操作。"""
 import gc
 import random
 import re
@@ -9,6 +8,12 @@ import time
 from DrissionPage import Chromium
 from DrissionPage.errors import PageDisconnectedError
 from curl_cffi import requests
+
+try:
+    from camoufox.sync_api import Camoufox
+    HAVE_CAMOUFOX = True
+except ImportError:
+    HAVE_CAMOUFOX = False
 
 browser = None
 page = None
@@ -204,6 +209,18 @@ def start_browser(log_callback=None, use_proxy=True):
         bridge = None
         try:
             browser_proxy, bridge = prepare_browser_proxy(use_proxy=use_proxy, log_callback=log_callback)
+            if HAVE_CAMOUFOX:
+                if log_callback:
+                    log_callback("[*] 启用 Camoufox C++ 顶级指纹伪装引擎")
+                kwargs = {"headless": False}
+                if browser_proxy:
+                    kwargs["proxy"] = {"server": browser_proxy}
+                cfx = Camoufox(**kwargs).start()
+                browser = cfx
+                browser_proxy_bridge = bridge
+                browser_started_with_proxy = bool(browser_proxy)
+                page = cfx.new_page()
+                return browser, page
             browser = Chromium(create_browser_options(browser_proxy=browser_proxy))
             browser_proxy_bridge = bridge
             browser_started_with_proxy = bool(browser_proxy)
@@ -227,7 +244,6 @@ def start_browser(log_callback=None, use_proxy=True):
             if log_callback:
                 mode = "代理" if proxy_enabled else "直连"
                 log_callback(f"[Debug] 浏览器{mode}启动失败(第{attempt}/4次): {exc}")
-            # 若看起来是代理问题，标记当前代理为坏
             try:
                 if is_proxy_connection_error(exc) or page_has_proxy_error(getattr(globals(), "page", None)):
                     from browser_runtime import mark_current_proxy_bad

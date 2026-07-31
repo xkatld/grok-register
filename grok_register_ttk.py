@@ -674,15 +674,20 @@ def run_registration_common(count, log_callback, cancel_callback, accounts_outpu
         retry_exception=AccountRetryNeeded,
         rotate_proxy=lambda: rotate_proxy_for_next(log_callback=log_callback),
     )
+    settings = RegistrationSettings(
+        count=int(count),
+        enable_nsfw=bool(config.get("enable_nsfw", True)),
+        fast_sso_mode=bool(config.get("fast_sso_mode", False)),
+        cleanup_interval=MEMORY_CLEANUP_INTERVAL,
+        max_slot_retry=3,
+        max_mail_retry=3,
+    )
     return run_batch(
         count=count,
         callbacks=callbacks,
         observer=observer,
         ops=operations,
-        enable_nsfw=bool(config.get("enable_nsfw", True)),
-        cleanup_interval=MEMORY_CLEANUP_INTERVAL,
-        max_slot_retry=3,
-        max_mail_retry=3,
+        settings=settings,
     )
 
 
@@ -772,6 +777,10 @@ class GrokRegisterGUI:
         self.nsfw_var = tk.BooleanVar(value=config.get("enable_nsfw", True))
         self.nsfw_check = tk_checkbutton(config_frame, text="注册后开启 NSFW", variable=self.nsfw_var)
         add_field(self.nsfw_check, 1, 1, sticky=tk.W)
+
+        self.fast_sso_var = tk.BooleanVar(value=config.get("fast_sso_mode", False))
+        self.fast_sso_check = tk_checkbutton(config_frame, text="激进极速模式(仅抓取SSO)", variable=self.fast_sso_var)
+        add_field(self.fast_sso_check, 1, 2, sticky=tk.W)
 
         add_label(1, 2, "代理（支持多行/逗号/分号）：")
         # 改为多行 Text，支持直接粘贴整块代理列表
@@ -1070,6 +1079,7 @@ class GrokRegisterGUI:
 
         config["email_provider"] = self.email_provider_var.get().strip() or "duckmail"
         config["enable_nsfw"] = bool(self.nsfw_var.get())
+        config["fast_sso_mode"] = bool(self.fast_sso_var.get())
         # 从多行 Text 读取代理，保持换行
         try:
             proxy_text = self.proxy_text.get("1.0", tk.END)

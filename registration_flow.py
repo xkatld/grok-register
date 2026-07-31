@@ -1,4 +1,3 @@
-"""编排 GUI 与 CLI 共用的单账号注册和批量执行流程。"""
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -30,7 +29,7 @@ class RegistrationOperations:
     sleep: Callable[[float], None]
     cancelled_exception: type
     retry_exception: type
-    rotate_proxy: Callable[[], str] = None  # optional; rotates and returns chosen proxy for this slot
+    rotate_proxy: Callable[[], str] = None
 
 
 @dataclass
@@ -58,6 +57,7 @@ class OutputResult:
 class RegistrationSettings:
     count: int
     enable_nsfw: bool = True
+    fast_sso_mode: bool = False
     max_mail_retry: int = 3
     max_slot_retry: int = 3
     cleanup_interval: int = 5
@@ -74,7 +74,7 @@ class BatchResult:
     results: list = field(default_factory=list)
 
 
-def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3):
+def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3, fast_sso_mode=False):
     email = ""
     dev_token = ""
     code = ""
@@ -111,7 +111,9 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3):
     callbacks.log(f"[*] 资料已填: {profile.get('given_name')} {profile.get('family_name')}")
     callbacks.log("[*] 5. 等待 sso cookie")
     sso = ops.wait_for_sso_cookie()
-    if enable_nsfw:
+    if fast_sso_mode:
+        callbacks.log("[+] 激进极速模式开启：SSO 捕获成功，跳过 NSFW 与后续非核心流程")
+    elif enable_nsfw:
         callbacks.log("[*] 6. 开启 NSFW")
         try:
             nsfw_ok, nsfw_msg = ops.enable_nsfw(sso)
@@ -130,7 +132,7 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3):
     )
 
 
-def persist_account_result(result, callbacks, ops):
+def persist_account_result(result, callbacks, ops, fast_sso_mode=False):
     if getattr(result, "sso", ""):
         try:
             ops.persist_sso_token(result.sso)
@@ -165,6 +167,17 @@ def persist_account_result(result, callbacks, ops):
             callbacks.log("[!] 未保存账号已写入 pending 队列，等待人工重试")
         else:
             callbacks.log("[!] pending 队列也写入失败，请立即复制当前账号信息")
+
+    if fast_sso_mode:
+        callbacks.log("[+] 激进模式：账号及 SSO 已完成极速落盘交割")
+        return OutputResult(
+            registered=True,
+            saved=saved,
+            pending_saved=pending_saved,
+            save_error=save_error,
+            pools={},
+            cpa={"ok": True, "skipped": True},
+        )
 
     try:
         pools = ops.add_tokens(result.sso, result.email)
@@ -287,8 +300,9 @@ def run_batch(count, callbacks, observer, ops, enable_nsfw=True, cleanup_interva
                     ops,
                     enable_nsfw=settings.enable_nsfw,
                     max_mail_retry=settings.max_mail_retry,
+                    fast_sso_mode=settings.fast_sso_mode,
                 )
-                output = persist_account_result(account, callbacks, ops)
+                output = persist_account_result(account, callbacks, ops, fast_sso_mode=settings.fast_sso_mode)
                 result.results.append({"registration": account, "output": output})
                 retry_count_for_slot = 0
                 result.processed_count += 1

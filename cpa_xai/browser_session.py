@@ -83,11 +83,11 @@ def create_standalone_page(proxy: Optional[str] = None, headless: bool = False, 
     for candidate in (
         "/usr/bin/google-chrome-stable",
         "/usr/bin/google-chrome",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
         "/usr/bin/vivaldi-stable",
         "/usr/bin/vivaldi",
         "/usr/bin/brave-browser",
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
         "/usr/bin/chromium-browser",
         "/usr/bin/chromium",
     ):

@@ -385,9 +385,6 @@ def create_browser_options(browser_proxy="", extension_path=None):
         "/usr/bin/google-chrome",
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
         r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        "/usr/bin/vivaldi-stable",
-        "/usr/bin/vivaldi",
-        "/usr/bin/brave-browser",
         "/usr/bin/chromium-browser",
         "/usr/bin/chromium",
     ):
